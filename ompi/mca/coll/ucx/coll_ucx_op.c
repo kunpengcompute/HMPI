@@ -1,8 +1,4 @@
 /*
- * Copyright (C) Mellanox Technologies Ltd. 2001-2011.  ALL RIGHTS RESERVED.
- * Copyright (c) 2016      The University of Tennessee and The University
- *                         of Tennessee Research Foundation.  All rights
- *                         reserved.
  * Copyright (c) 2020      Huawei Technologies Co., Ltd. All rights reserved.
  * $COPYRIGHT$
  *
@@ -13,9 +9,19 @@
 
 #include "coll_ucx.h"
 #include "coll_ucx_request.h"
+#include "coll_ucx_datatype.h"
+#include "ompi/mca/coll/base/coll_base_functions.h"
 
 #include "ompi/message/message.h"
 #include <inttypes.h>
+
+static inline void mca_coll_ucx_free(void **ptr)
+{
+    if (*ptr != NULL) {
+        free(*ptr);
+        *ptr = NULL;
+    }
+}
 
 static inline int mca_coll_ucx_is_datatype_supported(struct ompi_datatype_t *dtype, int count)
 {
@@ -92,10 +98,6 @@ int mca_coll_ucx_start(size_t count, ompi_request_t** requests)
                 __VA_ARGS__, (_sbuf), (_rbuf), (_count), (_datatype)->name, \
                 (_comm)->c_contextid, (_comm)->c_name);
 
-#define COLL_UCX_REQ_ALLOCA(ucx_module) \
-        ((char *)alloca(mca_coll_ucx_component.request_size) + \
-                mca_coll_ucx_component.request_size);
-
 static int coll_ucx_allreduce_pre_init(struct ompi_datatype_t *dtype, int count, void *sbuf,
                                        void *rbuf, char **inplace_buff, ptrdiff_t *gap)
 {
@@ -136,6 +138,7 @@ int mca_coll_ucx_allreduce(const void *sbuf, void *rbuf, int count,
     ucg_coll_h coll = NULL;
     ptrdiff_t extent, gap = 0;
     char *sbuf_rel = NULL;
+    char *request = NULL;
 
     ompi_datatype_type_extent(dtype, &extent);
     ucs_status_t ret = mca_coll_ucx_check_total_data_size((size_t)extent, count);
@@ -155,7 +158,12 @@ int mca_coll_ucx_allreduce(const void *sbuf, void *rbuf, int count,
 
     COLL_UCX_TRACE("%s", sbuf, rbuf, count, dtype, comm, "allreduce START");
 
-    ucs_status_ptr_t req = COLL_UCX_REQ_ALLOCA(ucx_module);
+    request = (char *)malloc(mca_coll_ucx_component.request_size);
+    if (request == NULL) {
+        ret = UCS_ERR_NO_MEMORY;
+        goto exit;
+    }
+    ucs_status_ptr_t req = request + mca_coll_ucx_component.request_size;
 
     ret = ucg_coll_allreduce_init(sbuf_rel, rbuf, count, (size_t)extent, dtype, ucx_module->ucg_group, 0,
                                   op, 0, 0, &coll);
@@ -175,13 +183,15 @@ int mca_coll_ucx_allreduce(const void *sbuf, void *rbuf, int count,
     }
 
     ucp_worker_h ucp_worker = mca_coll_ucx_component.ucg_worker;
-    MCA_COMMON_UCX_WAIT_LOOP(req, OPAL_COMMON_UCX_REQUEST_TYPE_UCG, ucp_worker, "ucx allreduce", (void)0);
+    MCA_COMMON_UCX_WAIT_LOOP(req, OPAL_COMMON_UCX_REQUEST_TYPE_UCG, ucp_worker, "ucx allreduce",
+                             mca_coll_ucx_free((void **)&request));
     COLL_UCX_TRACE("%s", sbuf, rbuf, count, dtype, comm, "allreduce END");
 
 exit:
     if (inplace_buff != NULL) {
         free(inplace_buff);
     }
+    mca_coll_ucx_free((void **)&request);
 
     return (ret == UCS_OK) ? OMPI_SUCCESS : OMPI_ERROR;
 }
@@ -259,6 +269,8 @@ int mca_coll_ucx_allreduce_init(const void *sbuf, void *rbuf, int count,
     return OMPI_SUCCESS;
 }
 
+
+#ifdef UCG_COLL_ALREADY_SUPPORTED
 int mca_coll_ucx_reduce(const void *sbuf, void* rbuf, int count,
                         struct ompi_datatype_t *dtype, struct ompi_op_t *op,
                         int root, struct ompi_communicator_t *comm,
@@ -268,7 +280,11 @@ int mca_coll_ucx_reduce(const void *sbuf, void* rbuf, int count,
 
     COLL_UCX_TRACE("%s", sbuf, rbuf, count, dtype, comm, "allreduce");
 
-    ucs_status_ptr_t req = COLL_UCX_REQ_ALLOCA(ucx_module);
+    char *request = (char *)malloc(mca_coll_ucx_component.request_size);
+    if (request == NULL) {
+        return UCS_ERR_NO_MEMORY;
+    }
+    ucs_status_ptr_t req = request + mca_coll_ucx_component.request_size;
 
     ptrdiff_t dtype_size;
     ucg_coll_h coll = NULL;
@@ -277,21 +293,26 @@ int mca_coll_ucx_reduce(const void *sbuf, void* rbuf, int count,
                                             op, root, 0, &coll);
     if (OPAL_UNLIKELY(ret != UCS_OK)) {
         COLL_UCX_ERROR("ucx reduce init failed: %s", ucs_status_string(ret));
-        return OMPI_ERROR;
+        goto exit;
     }
 
     ret = ucg_collective_start_nbr(coll, req);
     if (OPAL_UNLIKELY(UCS_STATUS_IS_ERR(ret))) {
         COLL_UCX_ERROR("ucx reduce start failed: %s", ucs_status_string(ret));
-        return OMPI_ERROR;
+        goto exit;
     }
 
     if (ucs_unlikely(ret == UCS_OK)) {
-        return OMPI_SUCCESS;
+        goto exit;
     }
 
     ucp_worker_h ucp_worker = mca_coll_ucx_component.ucg_worker;
-    MCA_COMMON_UCX_WAIT_LOOP(req, OPAL_COMMON_UCX_REQUEST_TYPE_UCG, ucp_worker, "ucx reduce", (void)0);
+    MCA_COMMON_UCX_WAIT_LOOP(req, OPAL_COMMON_UCX_REQUEST_TYPE_UCG, ucp_worker, "ucx reduce",
+                             mca_coll_ucx_free((void **)&request));
+
+exit:
+    mca_coll_ucx_free((void **)&request);
+    return (ret == UCS_OK) ? OMPI_SUCCESS : OMPI_ERROR;
 }
 
 int mca_coll_ucx_scatter(const void *sbuf, int scount, struct ompi_datatype_t *sdtype,
@@ -302,7 +323,11 @@ int mca_coll_ucx_scatter(const void *sbuf, int scount, struct ompi_datatype_t *s
 
     COLL_UCX_TRACE("%s", sbuf, rbuf, scount, sdtype, comm, "scatter");
 
-    ucs_status_ptr_t req = COLL_UCX_REQ_ALLOCA(ucx_module);
+    char *request = (char *)malloc(mca_coll_ucx_component.request_size);
+    if (request == NULL) {
+        return UCS_ERR_NO_MEMORY;
+    }
+    ucs_status_ptr_t req = request + mca_coll_ucx_component.request_size;
 
     ucg_coll_h coll = NULL;
     ptrdiff_t sdtype_size, rdtype_size;
@@ -313,22 +338,27 @@ int mca_coll_ucx_scatter(const void *sbuf, int scount, struct ompi_datatype_t *s
                                              ucx_module->ucg_group, 0, 0, root,
                                              0, &coll);
     if (OPAL_UNLIKELY(ret != UCS_OK)) {
-        COLL_UCX_ERROR("ucx reduce init failed: %s", ucs_status_string(ret));
-        return OMPI_ERROR;
+        COLL_UCX_ERROR("ucx scatter init failed: %s", ucs_status_string(ret));
+        goto exit;
     }
 
     ret = ucg_collective_start_nbr(coll, req);
     if (OPAL_UNLIKELY(UCS_STATUS_IS_ERR(ret))) {
-        COLL_UCX_ERROR("ucx reduce start failed: %s", ucs_status_string(ret));
-        return OMPI_ERROR;
+        COLL_UCX_ERROR("ucx scatter start failed: %s", ucs_status_string(ret));
+        goto exit;
     }
 
     if (ucs_unlikely(ret == UCS_OK)) {
-        return OMPI_SUCCESS;
+        goto exit;
     }
 
     ucp_worker_h ucp_worker = mca_coll_ucx_component.ucg_worker;
-    MCA_COMMON_UCX_WAIT_LOOP(req, OPAL_COMMON_UCX_REQUEST_TYPE_UCG, ucp_worker, "ucx scatter", (void)0);
+    MCA_COMMON_UCX_WAIT_LOOP(req, OPAL_COMMON_UCX_REQUEST_TYPE_UCG, ucp_worker, "ucx scatter",
+                             mca_coll_ucx_free((void **)&request));
+
+exit:
+    mca_coll_ucx_free((void **)&request);
+    return (ret == UCS_OK) ? OMPI_SUCCESS : OMPI_ERROR;
 }
 
 int mca_coll_ucx_gather(const void *sbuf, int scount, struct ompi_datatype_t *sdtype, void *rbuf, int rcount,
@@ -339,7 +369,11 @@ int mca_coll_ucx_gather(const void *sbuf, int scount, struct ompi_datatype_t *sd
 
     COLL_UCX_TRACE("%s", sbuf, rbuf, scount, sdtype, comm, "gather");
 
-    ucs_status_ptr_t req = COLL_UCX_REQ_ALLOCA(ucx_module);
+    char *request = (char *)malloc(mca_coll_ucx_component.request_size);
+    if (request == NULL) {
+        return UCS_ERR_NO_MEMORY;
+    }
+    ucs_status_ptr_t req = request + mca_coll_ucx_component.request_size;
 
     ucg_coll_h coll = NULL;
     ptrdiff_t sdtype_size, rdtype_size;
@@ -350,22 +384,27 @@ int mca_coll_ucx_gather(const void *sbuf, int scount, struct ompi_datatype_t *sd
                                             ucx_module->ucg_group, 0, 0, root,
                                             0, &coll);
     if (OPAL_UNLIKELY(ret != UCS_OK)) {
-        COLL_UCX_ERROR("ucx reduce init failed: %s", ucs_status_string(ret));
-        return OMPI_ERROR;
+        COLL_UCX_ERROR("ucx gather init failed: %s", ucs_status_string(ret));
+        goto exit;
     }
 
     ret = ucg_collective_start_nbr(coll, req);
     if (OPAL_UNLIKELY(UCS_STATUS_IS_ERR(ret))) {
-        COLL_UCX_ERROR("ucx reduce start failed: %s", ucs_status_string(ret));
-        return OMPI_ERROR;
+        COLL_UCX_ERROR("ucx gather start failed: %s", ucs_status_string(ret));
+        goto exit;
     }
 
     if (ucs_unlikely(ret == UCS_OK)) {
-        return OMPI_SUCCESS;
+        goto exit;
     }
 
     ucp_worker_h ucp_worker = mca_coll_ucx_component.ucg_worker;
-    MCA_COMMON_UCX_WAIT_LOOP(req, OPAL_COMMON_UCX_REQUEST_TYPE_UCG, ucp_worker, "ucx gather", (void)0);
+    MCA_COMMON_UCX_WAIT_LOOP(req, OPAL_COMMON_UCX_REQUEST_TYPE_UCG, ucp_worker, "ucx gather",
+                             mca_coll_ucx_free((void **)&request));
+
+exit:
+    mca_coll_ucx_free((void **)&request);
+    return (ret == UCS_OK) ? OMPI_SUCCESS : OMPI_ERROR;
 }
 
 int mca_coll_ucx_allgather(const void *sbuf, int scount, struct ompi_datatype_t *sdtype, void *rbuf, int rcount,
@@ -376,7 +415,11 @@ int mca_coll_ucx_allgather(const void *sbuf, int scount, struct ompi_datatype_t 
 
     COLL_UCX_TRACE("%s", sbuf, rbuf, scount, sdtype, comm, "allgather");
 
-    ucs_status_ptr_t req = COLL_UCX_REQ_ALLOCA(ucx_module);
+    char *request = (char *)malloc(mca_coll_ucx_component.request_size);
+    if (request == NULL) {
+        return UCS_ERR_NO_MEMORY;
+    }
+    ucs_status_ptr_t req = request + mca_coll_ucx_component.request_size;
 
     ucg_coll_h coll = NULL;
     ptrdiff_t sdtype_size, rdtype_size;
@@ -388,21 +431,26 @@ int mca_coll_ucx_allgather(const void *sbuf, int scount, struct ompi_datatype_t 
                                                0, &coll);
     if (OPAL_UNLIKELY(ret != UCS_OK)) {
         COLL_UCX_ERROR("ucx allgather init failed: %s", ucs_status_string(ret));
-        return OMPI_ERROR;
+        goto exit;
     }
 
     ret = ucg_collective_start_nbr(coll, req);
     if (OPAL_UNLIKELY(UCS_STATUS_IS_ERR(ret))) {
         COLL_UCX_ERROR("ucx allgather start failed: %s", ucs_status_string(ret));
-        return OMPI_ERROR;
+        goto exit;
     }
 
     if (ucs_unlikely(ret == UCS_OK)) {
-        return OMPI_SUCCESS;
+        goto exit;
     }
 
     ucp_worker_h ucp_worker = mca_coll_ucx_component.ucg_worker;
-    MCA_COMMON_UCX_WAIT_LOOP(req, OPAL_COMMON_UCX_REQUEST_TYPE_UCG, ucp_worker, "ucx allgather", (void)0);
+    MCA_COMMON_UCX_WAIT_LOOP(req, OPAL_COMMON_UCX_REQUEST_TYPE_UCG, ucp_worker, "ucx allgather",
+                             mca_coll_ucx_free((void **)&request));
+
+exit:
+    mca_coll_ucx_free((void **)&request);
+    return (ret == UCS_OK) ? OMPI_SUCCESS : OMPI_ERROR;
 }
 
 int mca_coll_ucx_alltoall(const void *sbuf, int scount, struct ompi_datatype_t *sdtype, void *rbuf, int rcount,
@@ -413,7 +461,11 @@ int mca_coll_ucx_alltoall(const void *sbuf, int scount, struct ompi_datatype_t *
 
     COLL_UCX_TRACE("%s", sbuf, rbuf, scount, sdtype, comm, "alltoall");
 
-    ucs_status_ptr_t req = COLL_UCX_REQ_ALLOCA(ucx_module);
+    char *request = (char *)malloc(mca_coll_ucx_component.request_size);
+    if (request == NULL) {
+        return UCS_ERR_NO_MEMORY;
+    }
+    ucs_status_ptr_t req = request + mca_coll_ucx_component.request_size;
 
     ucg_coll_h coll = NULL;
     ptrdiff_t sdtype_size, rdtype_size;
@@ -425,48 +477,158 @@ int mca_coll_ucx_alltoall(const void *sbuf, int scount, struct ompi_datatype_t *
                                               0, &coll);
     if (OPAL_UNLIKELY(ret != UCS_OK)) {
         COLL_UCX_ERROR("ucx alltoall init failed: %s", ucs_status_string(ret));
-        return OMPI_ERROR;
+        goto exit;
     }
 
     ret = ucg_collective_start_nbr(coll, req);
     if (OPAL_UNLIKELY(UCS_STATUS_IS_ERR(ret))) {
         COLL_UCX_ERROR("ucx alltoall start failed: %s", ucs_status_string(ret));
-        return OMPI_ERROR;
+        goto exit;
     }
 
     if (ucs_unlikely(ret == UCS_OK)) {
-        return OMPI_SUCCESS;
+        goto exit;
     }
 
     ucp_worker_h ucp_worker = mca_coll_ucx_component.ucg_worker;
-    MCA_COMMON_UCX_WAIT_LOOP(req, OPAL_COMMON_UCX_REQUEST_TYPE_UCG, ucp_worker, "ucx alltoall", (void)0);
+    MCA_COMMON_UCX_WAIT_LOOP(req, OPAL_COMMON_UCX_REQUEST_TYPE_UCG, ucp_worker, "ucx alltoall",
+                             mca_coll_ucx_free((void **)&request));
+
+exit:
+    mca_coll_ucx_free((void **)&request);
+    return (ret == UCS_OK) ? OMPI_SUCCESS : OMPI_ERROR;
+}
+#endif /* UCG_COLL_ALREADY_SUPPORTED */
+
+int mca_coll_ucx_alltoallv(const void *sbuf, const int *scounts, const int *sdispls, struct ompi_datatype_t *sdtype,
+                           void *rbuf, const int *rcounts, const int *rdispls, struct ompi_datatype_t *rdtype,
+                           struct ompi_communicator_t *comm, mca_coll_base_module_t *module)
+{
+    mca_coll_ucx_module_t *ucx_module = (mca_coll_ucx_module_t *)module;
+
+    COLL_UCX_TRACE("%s", sbuf, rbuf, *scounts, sdtype, comm, "alltoallv");
+
+    int size = ompi_comm_size(comm);
+    ptrdiff_t sdtype_size, rdtype_size;
+    ompi_datatype_type_extent(sdtype, &sdtype_size);
+    ompi_datatype_type_extent(rdtype, &rdtype_size);
+
+    /*
+     * current alltoallv can not support non-contig datatype and large datatype,
+     * fallback to original ompi alltoallv
+     */
+
+    /* non-contig datatype */
+    unsigned is_send_contig, is_recv_contig;
+    is_send_contig = mca_coll_ucg_check_contig_datatype(sdtype);
+    is_recv_contig = mca_coll_ucg_check_contig_datatype(rdtype);
+    if (!is_send_contig || !is_recv_contig) {
+        COLL_UCX_WARN("current hmpi alltoallv cannot support non-contig datatype, fallback to original ompi version");
+        goto fallback;
+    }
+
+    /* large datatype */
+    if (sdtype_size > LARGE_DATATYPE_THRESHOLD || rdtype_size > LARGE_DATATYPE_THRESHOLD) {
+        COLL_UCX_WARN("current hmpi alltoallv cannot support large datatype, fallback to original ompi version");
+        goto fallback;
+    }
+
+    int total_send_count = 0;
+    int total_recv_count = 0;
+
+    /* The send displs of alltoallv may not increase. */
+    int i;
+    for (i = 0; i < size; i++) {
+        total_send_count += scounts[i];
+    }
+    ucs_status_t ret = mca_coll_ucx_check_total_data_size((size_t)sdtype_size, total_send_count);
+    if (OPAL_UNLIKELY(ret != UCS_OK)) {
+        COLL_UCX_ERROR("ucx component only support data size <= 2^32 bytes. please use other component.");
+        return OMPI_ERROR;
+    }
+
+    /* The recv displs of alltoallv may not increase. */
+    for (i = 0; i < size; i++) {
+        total_recv_count += rcounts[i];
+    }
+    ret = mca_coll_ucx_check_total_data_size((size_t)rdtype_size, total_recv_count);
+    if (OPAL_UNLIKELY(ret != UCS_OK)) {
+        COLL_UCX_ERROR("ucx component only support data size <= 2^32 bytes. please use other component.");
+        return OMPI_ERROR;
+    }
+
+    ucg_coll_h coll = NULL;
+    ret = ucg_coll_alltoallv_init(sbuf, scounts, (size_t)sdtype_size, sdtype, sdispls,
+                                  rbuf, rcounts, (size_t)rdtype_size, rdtype, rdispls,
+                                  ucx_module->ucg_group, 0, 0, 0, 0, &coll);
+    if (OPAL_UNLIKELY(ret != UCS_OK)) {
+        COLL_UCX_ERROR("ucx alltoallv init failed: %s", ucs_status_string(ret));
+        return OMPI_ERROR;
+    }
+
+    char *request = (char *)malloc(mca_coll_ucx_component.request_size);
+    if (request == NULL) {
+        return UCS_ERR_NO_MEMORY;
+    }
+    ucs_status_ptr_t req = request + mca_coll_ucx_component.request_size;
+    ret = ucg_collective_start_nbr(coll, req);
+    if (OPAL_UNLIKELY(UCS_STATUS_IS_ERR(ret))) {
+        COLL_UCX_ERROR("ucx alltoallv start failed: %s", ucs_status_string(ret));
+        goto exit;
+    }
+
+    if (ucs_unlikely(ret == UCS_OK)) {
+        goto exit;
+    }
+
+    ucp_worker_h ucp_worker = mca_coll_ucx_component.ucg_worker;
+    MCA_COMMON_UCX_WAIT_LOOP(req, OPAL_COMMON_UCX_REQUEST_TYPE_UCG, ucp_worker, "ucx alltoallv",
+                             mca_coll_ucx_free((void **)&request));
+
+exit:
+    mca_coll_ucx_free((void **)&request);
+    return (ret == UCS_OK) ? OMPI_SUCCESS : OMPI_ERROR;
+
+fallback:
+    return ompi_coll_base_alltoallv_intra_pairwise(sbuf, scounts, sdispls, sdtype,
+                                                   rbuf, rcounts, rdispls, rdtype,
+                                                   comm, module);
 }
 
 int mca_coll_ucx_barrier(struct ompi_communicator_t *comm, mca_coll_base_module_t *module)
 {
     mca_coll_ucx_module_t *ucx_module = (mca_coll_ucx_module_t*)module;
 
-    ucs_status_ptr_t req = COLL_UCX_REQ_ALLOCA(ucx_module);
+    char *request = (char *)malloc(mca_coll_ucx_component.request_size);
+    if (request == NULL) {
+        return UCS_ERR_NO_MEMORY;
+    }
+    ucs_status_ptr_t req = request + mca_coll_ucx_component.request_size;
 
     ucg_coll_h coll = NULL;
     ucs_status_t ret = ucg_coll_barrier_init(0, ucx_module->ucg_group, 0, 0, 0, 0, &coll);
     if (OPAL_UNLIKELY(ret != UCS_OK)) {
         COLL_UCX_ERROR("ucx barrier init failed: %s", ucs_status_string(ret));
-        return OMPI_ERROR;
+        goto exit;
     }
 
     ret = ucg_collective_start_nbr(coll, req);
     if (OPAL_UNLIKELY(UCS_STATUS_IS_ERR(ret))) {
         COLL_UCX_ERROR("ucx barrier start failed: %s", ucs_status_string(ret));
-        return OMPI_ERROR;
+        goto exit;
     }
 
     if (ucs_unlikely(ret == UCS_OK)) {
-        return OMPI_SUCCESS;
+        goto exit;
     }
 
     ucp_worker_h ucp_worker = mca_coll_ucx_component.ucg_worker;
-    MCA_COMMON_UCX_WAIT_LOOP(req, OPAL_COMMON_UCX_REQUEST_TYPE_UCG, ucp_worker, "ucx barrier", (void)0);
+    MCA_COMMON_UCX_WAIT_LOOP(req, OPAL_COMMON_UCX_REQUEST_TYPE_UCG, ucp_worker, "ucx barrier",
+                             mca_coll_ucx_free((void **)&request));
+
+exit:
+    mca_coll_ucx_free((void **)&request);
+    return (ret == UCS_OK) ? OMPI_SUCCESS : OMPI_ERROR;
 }
 
 int mca_coll_ucx_bcast(void *buff, int count, struct ompi_datatype_t *dtype, int root,
@@ -476,32 +638,41 @@ int mca_coll_ucx_bcast(void *buff, int count, struct ompi_datatype_t *dtype, int
 
     COLL_UCX_TRACE("%s", buff, buff, count, dtype, comm, "bcast");
 
-    ucs_status_ptr_t req = COLL_UCX_REQ_ALLOCA(ucx_module);
+    char *request = (char *)malloc(mca_coll_ucx_component.request_size);
+    if (request == NULL) {
+        return UCS_ERR_NO_MEMORY;
+    }
+    ucs_status_ptr_t req = request + mca_coll_ucx_component.request_size;
     ptrdiff_t dtype_size;
     ucg_coll_h coll = NULL;
     ompi_datatype_type_extent(dtype, &dtype_size);
     ucs_status_t ret = mca_coll_ucx_check_total_data_size((size_t)dtype_size, count);
     if (OPAL_UNLIKELY(ret != UCS_OK)) {
         COLL_UCX_ERROR("ucx component only support data size <= 2^32 bytes. please use other component.");
-        return OMPI_ERROR;
+        goto exit;
     }
     ret = ucg_coll_bcast_init(buff, buff, count, (size_t)dtype_size, dtype, ucx_module->ucg_group, 0,
                               0, root, 0, &coll);
     if (OPAL_UNLIKELY(UCS_STATUS_IS_ERR(ret))) {
         COLL_UCX_ERROR("ucx bcast init failed: %s", ucs_status_string(ret));
-        return OMPI_ERROR;
+        goto exit;
     }
 
     ret = ucg_collective_start_nbr(coll, req);
     if (OPAL_UNLIKELY(UCS_STATUS_IS_ERR(ret))) {
         COLL_UCX_ERROR("ucx bcast start failed: %s", ucs_status_string(ret));
-        return OMPI_ERROR;
+        goto exit;
     }
 
     if (ucs_unlikely(ret == UCS_OK)) {
-        return OMPI_SUCCESS;
+        goto exit;
     }
 
     ucp_worker_h ucp_worker = mca_coll_ucx_component.ucg_worker;
-    MCA_COMMON_UCX_WAIT_LOOP(req, OPAL_COMMON_UCX_REQUEST_TYPE_UCG, ucp_worker, "ucx bcast", (void)0);
+    MCA_COMMON_UCX_WAIT_LOOP(req, OPAL_COMMON_UCX_REQUEST_TYPE_UCG, ucp_worker, "ucx bcast",
+                             mca_coll_ucx_free((void **)&request));
+
+exit:
+    mca_coll_ucx_free((void **)&request);
+    return (ret == UCS_OK) ? OMPI_SUCCESS : OMPI_ERROR;
 }

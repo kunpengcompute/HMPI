@@ -160,6 +160,13 @@ void orte_rmaps_base_map_job(int fd, short args, void *cbdata)
         jdata->map->display_map = orte_rmaps_base.display_map;
     }
 
+    if ((ORTE_MAPPING_GIVEN & ORTE_GET_MAPPING_DIRECTIVE(orte_rmaps_base.mapping)) &&
+        ORTE_MAPPING_BYUSER == ORTE_GET_MAPPING_POLICY(orte_rmaps_base.mapping) &&
+        (ORTE_MAPPING_GIVEN & ORTE_GET_MAPPING_DIRECTIVE(jdata->map->mapping)) &&
+        ORTE_MAPPING_BYSOCKET == ORTE_GET_MAPPING_POLICY(jdata->map->mapping)) {
+        jdata->map->mapping = 0;
+    }
+
     /* set the default mapping policy IFF it wasn't provided */
     if (!ORTE_MAPPING_POLICY_IS_SET(jdata->map->mapping)) {
         if (inherit && (ORTE_MAPPING_GIVEN & ORTE_GET_MAPPING_DIRECTIVE(orte_rmaps_base.mapping))) {

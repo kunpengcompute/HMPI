@@ -198,7 +198,7 @@ volatile void* volatile orte_noop_mpir_breakpoint_ptr = NULL;
  */
 void MPIR_Breakpoint(void)
 {
-    /* 
+    /*
      * Actually do something with this pointer to make
      * sure the compiler does not optimize out this function.
      * The compiler should be forced to keep this
@@ -784,6 +784,7 @@ int orte_submit_job(char *argv[], int *index,
     orte_app_context_t *app, *dapp;
     trackr_t *trk;
     int argc;
+    int default_mapping_policy_flag = 0;
 
     /* bozo check - we don't allow recursive calls of submit */
     if (NULL != getenv("OMPI_UNIVERSE_SIZE")) {
@@ -902,6 +903,11 @@ int orte_submit_job(char *argv[], int *index,
         return ORTE_ERR_FATAL;
     }
 
+    if (NULL == orte_cmd_options.mapping_policy) {
+        orte_cmd_options.mapping_policy = strdup("socket");
+        default_mapping_policy_flag = 1;
+    }
+
     /* create the map object to communicate policies */
     jdata->map = OBJ_NEW(orte_job_map_t);
 
@@ -927,6 +933,11 @@ int orte_submit_job(char *argv[], int *index,
         (void)asprintf(&jdata->map->ppr, "%d:socket", orte_cmd_options.npersocket);
     }
 
+    if (default_mapping_policy_flag) {
+        free(orte_cmd_options.mapping_policy);
+        orte_cmd_options.mapping_policy = NULL;
+        default_mapping_policy_flag = 0;
+    }
 
     /* if the user specified cpus/rank, set it */
     if (0 < orte_cmd_options.cpus_per_proc) {
