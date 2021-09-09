@@ -16,6 +16,11 @@
 
 #define COLL_UCX_DATATYPE_INVALID   0
 
+#define UCP_DT_IS_CONTIG(_datatype) \
+    (((_datatype) & UCP_DATATYPE_CLASS_MASK) == UCP_DATATYPE_CONTIG)
+
+#define LARGE_DATATYPE_THRESHOLD 32
+
 #ifdef HAVE_UCP_REQUEST_PARAM_T
 typedef struct {
     ucp_datatype_t          datatype;
@@ -80,5 +85,13 @@ static inline size_t mca_coll_ucx_get_data_size(coll_ucx_datatype_t *op_data,
     return count << op_data->size_shift;
 }
 #endif
+
+__opal_attribute_always_inline__
+static int mca_coll_ucg_check_contig_datatype(ompi_datatype_t *mpi_dt)
+{
+    ucp_datatype_t ucp_datatype = mca_coll_ucx_get_datatype(mpi_dt);
+
+    return UCP_DT_IS_CONTIG(ucp_datatype);
+}
 
 #endif /* COLL_UCX_DATATYPE_H_ */

@@ -13,6 +13,8 @@
 
 #include "coll_ucx.h"
 #include "coll_ucx_request.h"
+#include "coll_ucx_datatype.h"
+#include "ompi/mca/coll/base/coll_base_functions.h"
 
 #include "ompi/message/message.h"
 #include <inttypes.h>
@@ -259,6 +261,8 @@ int mca_coll_ucx_allreduce_init(const void *sbuf, void *rbuf, int count,
     return OMPI_SUCCESS;
 }
 
+
+#ifdef UCG_COLL_ALREADY_SUPPORTED
 int mca_coll_ucx_reduce(const void *sbuf, void* rbuf, int count,
                         struct ompi_datatype_t *dtype, struct ompi_op_t *op,
                         int root, struct ompi_communicator_t *comm,
@@ -440,6 +444,94 @@ int mca_coll_ucx_alltoall(const void *sbuf, int scount, struct ompi_datatype_t *
 
     ucp_worker_h ucp_worker = mca_coll_ucx_component.ucg_worker;
     MCA_COMMON_UCX_WAIT_LOOP(req, OPAL_COMMON_UCX_REQUEST_TYPE_UCG, ucp_worker, "ucx alltoall", (void)0);
+}
+#endif /* UCG_COLL_ALREADY_SUPPORTED */
+
+int mca_coll_ucx_alltoallv(const void *sbuf, const int *scounts, const int *sdispls, struct ompi_datatype_t *sdtype,
+                           void *rbuf, const int *rcounts, const int *rdispls, struct ompi_datatype_t *rdtype,
+                           struct ompi_communicator_t *comm, mca_coll_base_module_t *module)
+{
+    mca_coll_ucx_module_t *ucx_module = (mca_coll_ucx_module_t *)module;
+
+    COLL_UCX_TRACE("%s", sbuf, rbuf, *scounts, sdtype, comm, "alltoallv");
+
+    ucs_status_ptr_t req = COLL_UCX_REQ_ALLOCA(ucx_module);
+
+    int size = ompi_comm_size(comm);
+    ptrdiff_t sdtype_size, rdtype_size;
+    ompi_datatype_type_extent(sdtype, &sdtype_size);
+    ompi_datatype_type_extent(rdtype, &rdtype_size);
+
+    /*
+     * current alltoallv can not support non-contig datatype and large datatype,
+     * fallback to original ompi alltoallv
+     */
+
+    /* non-contig datatype */
+    unsigned is_send_contig, is_recv_contig;
+    is_send_contig = mca_coll_ucg_check_contig_datatype(sdtype);
+    is_recv_contig = mca_coll_ucg_check_contig_datatype(rdtype);
+    if (!is_send_contig || !is_recv_contig) {
+        COLL_UCX_WARN("current hmpi alltoallv cannot support non-contig datatype, fallback to original ompi version");
+        goto fallback;
+    }
+
+    /* large datatype */
+    if (sdtype_size > LARGE_DATATYPE_THRESHOLD || rdtype_size > LARGE_DATATYPE_THRESHOLD) {
+        COLL_UCX_WARN("current hmpi alltoallv cannot support large datatype, fallback to original ompi version");
+        goto fallback;
+    }
+
+    int total_send_count = 0;
+    int total_recv_count = 0;
+
+    /* The send displs of alltoallv may not increase. */
+    int i;
+    for (i = 0; i < size; i++) {
+        total_send_count += scounts[i];
+    }
+    ucs_status_t ret = mca_coll_ucx_check_total_data_size((size_t)sdtype_size, total_send_count);
+    if (OPAL_UNLIKELY(ret != UCS_OK)) {
+        COLL_UCX_ERROR("ucx component only support data size <= 2^32 bytes. please use other component.");
+        return OMPI_ERROR;
+    }
+
+    /* The recv displs of alltoallv may not increase. */
+    for (i = 0; i < size; i++) {
+        total_recv_count += rcounts[i];
+    }
+    ret = mca_coll_ucx_check_total_data_size((size_t)rdtype_size, total_recv_count);
+    if (OPAL_UNLIKELY(ret != UCS_OK)) {
+        COLL_UCX_ERROR("ucx component only support data size <= 2^32 bytes. please use other component.");
+        return OMPI_ERROR;
+    }
+
+    ucg_coll_h coll = NULL;
+    ret = ucg_coll_alltoallv_init(sbuf, scounts, (size_t)sdtype_size, sdtype, sdispls,
+                                  rbuf, rcounts, (size_t)rdtype_size, rdtype, rdispls,
+                                  ucx_module->ucg_group, 0, 0, 0, 0, &coll);
+    if (OPAL_UNLIKELY(ret != UCS_OK)) {
+        COLL_UCX_ERROR("ucx alltoallv init failed: %s", ucs_status_string(ret));
+        return OMPI_ERROR;
+    }
+
+    ret = ucg_collective_start_nbr(coll, req);
+    if (OPAL_UNLIKELY(UCS_STATUS_IS_ERR(ret))) {
+        COLL_UCX_ERROR("ucx alltoallv start failed: %s", ucs_status_string(ret));
+        return OMPI_ERROR;
+    }
+
+    if (ucs_unlikely(ret == UCS_OK)) {
+        return OMPI_SUCCESS;
+    }
+
+    ucp_worker_h ucp_worker = mca_coll_ucx_component.ucg_worker;
+    MCA_COMMON_UCX_WAIT_LOOP(req, OPAL_COMMON_UCX_REQUEST_TYPE_UCG, ucp_worker, "ucx alltoallv", (void)0);
+
+fallback:
+    return ompi_coll_base_alltoallv_intra_pairwise(sbuf, scounts, sdispls, sdtype,
+                                                   rbuf, rcounts, rdispls, rdtype,
+                                                   comm, module);
 }
 
 int mca_coll_ucx_barrier(struct ompi_communicator_t *comm, mca_coll_base_module_t *module)

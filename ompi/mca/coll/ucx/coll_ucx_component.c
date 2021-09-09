@@ -49,8 +49,8 @@ mca_coll_ucx_component_t mca_coll_ucx_component = {
 
             /* Component name and version */
             .mca_component_name = "ucx",
-            MCA_BASE_MAKE_VERSION(component, OMPI_MAJOR_VERSION, OMPI_MINOR_VERSION,
-                                  OMPI_RELEASE_VERSION),
+            MCA_BASE_MAKE_VERSION(component, COLL_UCX_MAJOR_VERSION, COLL_UCX_MINOR_VERSION,
+                                  COLL_UCX_RELEASE_VERSION),
 
             /* Component open and close functions */
             .mca_open_component = ucx_open,
@@ -69,8 +69,11 @@ mca_coll_ucx_component_t mca_coll_ucx_component = {
     .priority = 91,  /* priority */
     .verbose = 0,   /* verbose level */
     .num_disconnect = 0,   /* ucx_enable */
-    .enable_topo_map = 1,  /* enable topology map */
-    .topo_map = NULL
+    .topo_aware_level = COLL_UCX_TOPO_LEVEL_SOCKET,
+    .topo = {
+        .level = COLL_UCX_TOPO_LEVEL_ROOT,
+        .locs = NULL,
+    },
 };
 
 int mca_coll_ucx_init_query(bool enable_progress_threads,
@@ -134,13 +137,13 @@ static int ucx_register(void)
         return OMPI_ERROR;
     }
 
-    mca_coll_ucx_component.enable_topo_map = 1;
-    status = mca_base_component_var_register(&mca_coll_ucx_component.super.collm_version, "enable_topo_map",
-                                             "Enable global topology map for ucg",
-                                             MCA_BASE_VAR_TYPE_BOOL, NULL, 0, 0,
+    mca_coll_ucx_component.topo_aware_level = COLL_UCX_TOPO_LEVEL_SOCKET;
+    status = mca_base_component_var_register(&mca_coll_ucx_component.super.collm_version, "topo_aware_level",
+                                             "Topology aware level for ucg",
+                                             MCA_BASE_VAR_TYPE_INT, NULL, 0, 0,
                                              OPAL_INFO_LVL_3,
                                              MCA_BASE_VAR_SCOPE_LOCAL,
-                                             &mca_coll_ucx_component.enable_topo_map);
+                                             &mca_coll_ucx_component.topo_aware_level);
     if (status < OPAL_SUCCESS) {
         return OMPI_ERROR;
     }
@@ -407,14 +410,8 @@ void mca_coll_ucx_cleanup(void)
         ucg_worker_destroy(mca_coll_ucx_component.ucg_worker);
         mca_coll_ucx_component.ucg_worker = NULL;
     }
-    if (mca_coll_ucx_component.topo_map) {
-        for (unsigned i = 0; i < mca_coll_ucx_component.world_member_count; i++) {
-            free(mca_coll_ucx_component.topo_map[i]);
-            mca_coll_ucx_component.topo_map[i] = NULL;
-        }
-        free(mca_coll_ucx_component.topo_map);
-        mca_coll_ucx_component.topo_map = NULL;
-    }
+
+    mca_coll_ucx_destroy_global_topo();
 }
 
 ucs_status_t mca_coll_ucx_resolve_address(void *cb_group_obj, ucg_group_member_index_t rank, ucg_address_t **addr,
