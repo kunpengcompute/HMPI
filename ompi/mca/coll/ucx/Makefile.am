@@ -1,8 +1,6 @@
 # -*- shell-script -*-
 #
 #
-# Copyright (c) 2011 Mellanox Technologies. All rights reserved.
-# Copyright (c) 2013 Cisco Systems, Inc.  All rights reserved.
 # Copyright (c) 2020 Huawei Technologies Co., Ltd. All rights reserved.
 # $COPYRIGHT$
 #

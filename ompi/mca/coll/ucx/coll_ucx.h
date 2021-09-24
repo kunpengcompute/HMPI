@@ -1,13 +1,10 @@
-/**
-  Copyright (c) 2011      Mellanox Technologies. All rights reserved.
-  Copyright (c) 2015      Research Organization for Information Science
-                          and Technology (RIST). All rights reserved.
-  Copyright (c) 2020      Huawei Technologies Co., Ltd. All rights reserved.
-  $COPYRIGHT$
-
-  Additional copyrights may follow
-
-  $HEADER$
+/*
+ * Copyright (c) 2020      Huawei Technologies Co., Ltd. All rights reserved.
+ * $COPYRIGHT$
+ *
+ * Additional copyrights may follow
+ *
+ * $HEADER$
  */
 
 #ifndef MCA_COLL_UCX_H
@@ -44,10 +41,49 @@
 #define COLL_UCX_WARN    MCA_COMMON_UCX_WARN
 #define COLL_UCX_VERBOSE MCA_COMMON_UCX_VERBOSE
 
+#define COLL_UCX_MAJOR_VERSION 1
+#define COLL_UCX_MINOR_VERSION 1
+#define COLL_UCX_RELEASE_VERSION 0
+
 BEGIN_C_DECLS
 
 typedef struct coll_ucx_persistent_op mca_coll_ucx_persistent_op_t;
 typedef struct coll_ucx_convertor     mca_coll_ucx_convertor_t;
+
+typedef enum {
+    COLL_UCX_TOPO_LEVEL_ROOT,
+    COLL_UCX_TOPO_LEVEL_NODE,
+    COLL_UCX_TOPO_LEVEL_SOCKET,
+    COLL_UCX_TOPO_LEVEL_L3CACHE,
+} coll_ucx_topo_level_t;
+
+typedef struct {
+    uint32_t node_id    : 16;
+    uint32_t sock_id    : 8;
+    uint32_t reserved   : 8;
+} rank_location_t;
+
+typedef union coll_ucx_topo_tree {
+    struct {
+        int rank_nums;
+        int child_nums;
+        union coll_ucx_topo_tree *child;
+    } inter;
+    struct {
+        int rank_nums;
+        int rank_min;
+        int rank_max;
+    } leaf;
+} coll_ucx_topo_tree_t;
+
+typedef struct {
+    int                   rank_nums;
+    int                   node_nums;
+    int                   sock_nums;
+    coll_ucx_topo_level_t level;
+    coll_ucx_topo_tree_t  tree;
+    rank_location_t      *locs;
+} coll_ucx_topo_info_t;
 
 typedef struct mca_coll_ucx_component {
     /* base MCA collectives component */
@@ -57,15 +93,14 @@ typedef struct mca_coll_ucx_component {
     int                       priority;
     int                       verbose;
     int                       num_disconnect;
-    bool                      enable_topo_map;
+    int                       topo_aware_level;
 
     /* UCX global objects */
     ucg_context_h             ucg_context;
     ucg_worker_h              ucg_worker;
     int                       output;
     ucs_list_link_t           group_head;
-    char                      **topo_map;
-    unsigned                  world_member_count;
+    coll_ucx_topo_info_t      topo;
 
     /* Requests */
     mca_coll_ucx_freelist_t   persistent_ops;
@@ -83,6 +118,8 @@ OMPI_MODULE_DECLSPEC extern mca_coll_ucx_component_t mca_coll_ucx_component;
 
 typedef struct mca_coll_ucx_module {
     mca_coll_base_module_t super;
+
+    coll_ucx_topo_tree_t  *topo_tree;
 
     /* UCX per-communicator context */
     ucg_group_h            ucg_group;
@@ -122,6 +159,11 @@ ucs_status_t mca_coll_ucx_resolve_address(void *cb_group_obj, ucg_group_member_i
  * Release an obtained address for a remote node.
  */
 void mca_coll_ucx_release_address(ucg_address_t *addr);
+
+/*
+ * Release location array and comm_world's topo tree when coll_ucx component close.
+ */
+void mca_coll_ucx_destroy_global_topo();
 
 /*
  * The collective operations themselves.
@@ -172,6 +214,11 @@ int mca_coll_ucx_alltoall(const void *sbuf, int scount, struct ompi_datatype_t *
                           void *rbuf, int rcount, struct ompi_datatype_t *rdtype,
                           struct ompi_communicator_t *comm,
                           mca_coll_base_module_t *module);
+
+int mca_coll_ucx_alltoallv(const void *sbuf, const int *scounts, const int *sdispls,
+                           struct ompi_datatype_t *sdtype, void *rbuf, const int *rcounts,
+                           const int *rdispls, struct ompi_datatype_t *rdtype,
+                           struct ompi_communicator_t *comm, mca_coll_base_module_t *module);
 
 int mca_coll_ucx_barrier(struct ompi_communicator_t *comm, mca_coll_base_module_t *module);
 

@@ -1,7 +1,6 @@
 # -*- shell-script -*-
 #
 #
-# Copyright (c) 2011 Mellanox Technologies. All rights reserved.
 # Copyright (c) 2020 Huawei Technologies Co., Ltd. All rights reserved.
 # $COPYRIGHT$
 #
@@ -34,4 +33,3 @@ AC_DEFUN([MCA_ompi_coll_ucx_CONFIG],[
     AC_SUBST([coll_ucx_LDFLAGS])
     AC_SUBST([coll_ucx_LIBS])
 ])dnl
-
