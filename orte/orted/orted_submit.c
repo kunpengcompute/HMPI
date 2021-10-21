@@ -18,6 +18,8 @@
  * Copyright (c) 2015-2018 Research Organization for Information Science
  *                         and Technology (RIST). All rights reserved.
  * Copyright (c) 2017-2021 IBM Corporation.  All rights reserved.
+ * Copyright (c) 2021      Huawei Technologies Co., Ltd.
+ *                         All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -730,6 +732,7 @@ int orte_submit_job(char *argv[], int *index,
     orte_app_context_t *app, *dapp;
     trackr_t *trk;
     int argc;
+    int default_mapping_policy_flag = 0;
 
     /* bozo check - we don't allow recursive calls of submit */
     if (NULL != getenv("OMPI_UNIVERSE_SIZE")) {
@@ -848,6 +851,11 @@ int orte_submit_job(char *argv[], int *index,
         return ORTE_ERR_FATAL;
     }
 
+    if (NULL == orte_cmd_options.mapping_policy) {
+       orte_cmd_options.mapping_policy = strdup("socket");
+       default_mapping_policy_flag = 1;
+    }
+
     /* create the map object to communicate policies */
     jdata->map = OBJ_NEW(orte_job_map_t);
 
@@ -872,7 +880,12 @@ int orte_submit_job(char *argv[], int *index,
         /* define the ppr */
         (void)asprintf(&jdata->map->ppr, "%d:socket", orte_cmd_options.npersocket);
     }
-
+    
+    if (default_mapping_policy_flag) {
+        free(orte_cmd_options.mapping_policy);
+        orte_cmd_options.mapping_policy = NULL;
+        default_mapping_policy_flag = 0;
+    }
 
     /* if the user specified cpus/rank, set it */
     if (0 < orte_cmd_options.cpus_per_proc) {

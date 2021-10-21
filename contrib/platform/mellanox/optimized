@@ -52,7 +52,7 @@ else
     enable_picky=no
     enable_heterogeneous=no
     enable_ft_thread=no
-    with_mpi_param_check=no
+    with_mpi_param_check=yes
     CXXFLAGS="-O3 -g"
     CCASFLAGS="-O3 -g"
     FCFLAGS="-O3 -g"

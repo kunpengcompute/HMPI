@@ -9,6 +9,8 @@
  *                         reserved.
  * Copyright (c) 2015-2020 Research Organization for Information Science
  *                         and Technology (RIST). All rights reserved.
+ * Copyright (c) 2021      Huawei Technologies Co., Ltd.
+ *                         All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -77,6 +79,7 @@ struct ompi_datatype_t {
     void*              args;                     /**< Data description for the user */
     void*              packed_description;       /**< Packed description of the datatype */
     uint64_t           pml_data;                 /**< PML-specific information */
+    uint64_t           coll_data;                /**< coll-specific information */
     /* --- cacheline 6 boundary (384 bytes) --- */
     char               name[MPI_MAX_OBJECT_NAME];/**< Externally visible name */
     /* --- cacheline 7 boundary (448 bytes) --- */
