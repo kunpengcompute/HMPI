@@ -1,7 +1,7 @@
 /* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil -*- */
 /*
  * Copyright (c) 2022-2022 Huawei Technologies Co., Ltd.
- *                                All rights reserved.
+ *                         All rights reserved.
  * COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -216,7 +216,7 @@ int mca_coll_ucg_rcache_init(int size)
 void mca_coll_ucg_rcache_cleanup()
 {
     UCG_INFO_IF(mca_coll_ucg_rcache.total > 0, "rcache hit rate: %.2f%% (%lu/%lu)",
-                100.0 * mca_coll_ucg_rcache.hit / mca_coll_ucg_rcache.total,
+                100.0 * mca_coll_ucg_rcache.hit / mca_coll_ucg_rcache.total ,
                 mca_coll_ucg_rcache.hit, mca_coll_ucg_rcache.total);
     opal_list_t *requests = &mca_coll_ucg_rcache.requests;
     if (!opal_list_is_empty(requests)) {
@@ -438,14 +438,14 @@ int mca_coll_ucg_request_common_init(mca_coll_ucg_req_t *coll_req,
 
 void mca_coll_ucg_request_cleanup(mca_coll_ucg_req_t *coll_req)
 {
-    //clean up resource initialized by ${coll_type}_init
+    // clean up resource initialized by ${coll_type}_init
     if (coll_req->ucg_req != NULL) {
         ucg_status_t status = ucg_request_cleanup(coll_req->ucg_req);
         if (status != UCG_OK) {
             UCG_ERROR("Failed to cleanup ucg request, %s", ucg_status_string(status));
         }
     }
-    //clean up resource initialized by common_init
+    // clean up resource initialized by common_init
     OMPI_REQUEST_FINI(&coll_req->super.super);
     return;
 }
@@ -456,23 +456,23 @@ int mca_coll_ucg_request_execute(mca_coll_ucg_req_t *coll_req)
 
     ucg_status_t status;
     status = ucg_request_start(ucg_req);
-        if (status != UCG_OK) {
-                UCG_DEBUG("Failed to start ucg request, %s", ucg_status_string(status));
-                return OMPI_ERROR;
-        }
+    if (status != UCG_OK) {
+        UCG_DEBUG("Failed to start ucg request, %s", ucg_status_string(status));
+        return OMPI_ERROR;
+    }
 
-        int count = 0;
-        while (UCG_INPROGRESS == (status = ucg_request_test(ucg_req))) {
-            //TODO: test wether opal_progress() can be removed
-            if (++count % 1000 == 0) {
-                opal_progress();
-            }
+    int count = 0;
+    while (UCG_INPROGRESS == (status = ucg_request_test(ucg_req))) {
+        //TODO: test wether opal_progress() can be removed
+        if (++count % 1000 == 0) {
+            opal_progress();
         }
-        if (status != UCG_OK) {
-                UCG_DEBUG("Failed to progress ucg request, %s", ucg_status_string(status));
-                return OMPI_ERROR;
-        }
-        return OMPI_SUCCESS;
+    }
+    if (status != UCG_OK) {
+        UCG_DEBUG("Failed to progress ucg request, %s", ucg_status_string(status));
+        return OMPI_ERROR;
+    }
+    return OMPI_SUCCESS;
 }
 
 int mca_coll_ucg_request_execute_nb(mca_coll_ucg_req_t *coll_req)
@@ -522,6 +522,6 @@ int mca_coll_ucg_request_execute_cache_nb(mca_coll_ucg_args_t *key,
         return rc;
     }
     *coll_req = tmp_coll_req;
-    //mca_coll_ucg_request_free() will put the coll_req into cache again.
+    // mca_coll_ucg_request_free() will put the coll_req into cache again.
     return OMPI_SUCCESS;
 }
