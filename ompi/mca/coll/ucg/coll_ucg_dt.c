@@ -1,7 +1,7 @@
 /* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil -*- */
 /*
  * Copyright (c) 2022-2022 Huawei Technologies Co., Ltd.
- *                                All rights reserved.
+ *                         All rights reserved.
  * COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -69,7 +69,7 @@ static ucg_status_t mca_coll_ucg_conv_pack(void *conv, uint64_t offset, void *bu
 
     iov_count    = 1;
     iov.iov_base = buffer;
-    iov.iov_len = *length;
+    iov.iov_len  = *length;
 
     opal_convertor_set_position(&convertor->opal_conv, &offset);
     pack_length = *length;
@@ -115,7 +115,7 @@ static ucg_status_t mca_coll_ucg_conv_unpack(void *conv, uint64_t offset, const 
 
     iov_count    = 1;
     iov.iov_base = (void*)buffer;
-    iov.iov_len = *length;
+    iov.iov_len  = *length;
 
     /* in case if unordered message arrived - create separate convertor to
      * unpack data. */
@@ -206,7 +206,7 @@ static inline ucg_dt_type_t ompi_dt_2_ucg_dt_type(ompi_datatype_t *ompi_dt)
 
 static inline ucg_op_type_t ompi_op_2_ucg_op_type(ompi_op_t *ompi_op)
 {
-    switch (ompi_op->op_type){
+    switch (ompi_op->op_type) {
         case OMPI_OP_MAX:
             return UCG_OP_TYPE_MAX;
         case OMPI_OP_MIN:
@@ -260,7 +260,7 @@ static int mca_coll_ucg_type_create_user_dt(ompi_datatype_t *ompi_dt, ucg_dt_h *
         params.conv.finish = mca_coll_ucg_conv_finish;
     }
     ucg_status_t status = ucg_dt_create(&params, ucg_dt);
-    if (status != UCG_OK){
+    if (status != UCG_OK) {
         UCG_ERROR("Failed to create user-defined dt");
         return OMPI_ERROR;
     }
@@ -296,7 +296,7 @@ static int mca_coll_ucg_type_create_dt()
     for (; type < UCG_DT_TYPE_PREDEFINED_LAST; ++type) {
         params.type = type;
         ucg_status_t status = ucg_dt_create(&params, &ucg_type_table.predefined_dt[type]);
-        if (status != UCG_OK){
+        if (status != UCG_OK) {
             goto err_destroy_dt;
         }
     }
@@ -341,7 +341,7 @@ static int mca_coll_ucg_type_create_op()
     for (; type < UCG_OP_TYPE_PREDEFINED_LAST; ++type) {
         params.type = type;
         ucg_status_t status = ucg_op_create(&params, &ucg_type_table.predefined_op[type]);
-        if (status != UCG_OK){
+        if (status != UCG_OK) {
             goto err_destroy_op;
         }
     }
@@ -403,7 +403,7 @@ static int mca_coll_ucg_type_adapt_op(ompi_op_t *ompi_op,
     params.user_func = mca_coll_ucg_op_reduce;
     params.commutative = ompi_op_is_commute(ompi_op);
     ucg_status_t status = ucg_op_init(&params, *ucg_op, UCG_OP_SIZE);
-    if (status != UCG_OK){
+    if (status != UCG_OK) {
         UCG_ERROR("Failed to initialize ucg op: %d", status);
         return OMPI_ERROR;
     }

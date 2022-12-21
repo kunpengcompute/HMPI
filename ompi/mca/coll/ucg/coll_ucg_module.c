@@ -1,7 +1,7 @@
 /* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil -*- */
 /*
  * Copyright (c) 2022-2022 Huawei Technologies Co., Ltd.
- *                                All rights reserved.
+ *                         All rights reserved.
  * COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -31,7 +31,7 @@ mca_pml_ucx_module_t ompi_pml_ucx __attribute__((weak));
     }
 
 #define MCA_COLL_UCG_SAVE_FALLBACK(_api) \
-    do { \
+    do {\
         ucg_module->previous_ ## _api            = comm->c_coll->coll_ ## _api;\
         ucg_module->previous_ ## _api ## _module = comm->c_coll->coll_ ## _api ## _module;\
         if (!comm->c_coll->coll_ ## _api || !comm->c_coll->coll_ ## _api ## _module) {\
@@ -79,8 +79,8 @@ static ucg_status_t mca_coll_ucg_oob_blocking_allgather(const void *sendbuf,
                 memcpy(recvbuf, sendbuf, count);
             } else {
                 rc = MCA_PML_CALL(recv((char *)recvbuf + i * count, count, MPI_CHAR, i,
-                                  MCA_COLL_BASE_TAG_ALLGATHER, comm,
-                                  MPI_STATUS_IGNORE));
+                                       MCA_COLL_BASE_TAG_ALLGATHER, comm,
+                                       MPI_STATUS_IGNORE));
                 if (rc != OMPI_SUCCESS) {
                     goto out;
                 }
@@ -90,24 +90,24 @@ static ucg_status_t mca_coll_ucg_oob_blocking_allgather(const void *sendbuf,
         //bcast recvbuf to all rank
         for (i = 1; i < size; i++) {
             rc = MCA_PML_CALL(send((char *)recvbuf, size * count, MPI_CHAR, i,
-                                  MCA_COLL_BASE_TAG_ALLGATHER,
-                                  MCA_PML_BASE_SEND_STANDARD, comm));
-                if (rc != OMPI_SUCCESS) {
-                    goto out;
+                              MCA_COLL_BASE_TAG_ALLGATHER,
+                              MCA_PML_BASE_SEND_STANDARD, comm));
+            if (rc != OMPI_SUCCESS) {
+                goto out;
             }
         }
     } else {
         //send data to rank 0
         rc = MCA_PML_CALL(send((char *)sendbuf, count, MPI_CHAR, 0, MCA_COLL_BASE_TAG_ALLGATHER,
-                                MCA_PML_BASE_SEND_STANDARD, comm));
+                          MCA_PML_BASE_SEND_STANDARD, comm));
         if (rc != OMPI_SUCCESS) {
             goto out;
-         }
+        }
 
         //recv gather data from rank 0
         rc = MCA_PML_CALL(recv((char *)recvbuf, size * count, MPI_CHAR, 0,
-                                MCA_COLL_BASE_TAG_ALLGATHER, comm,
-                                MPI_STATUS_IGNORE));
+                          MCA_COLL_BASE_TAG_ALLGATHER, comm,
+                          MPI_STATUS_IGNORE));
         if (rc != OMPI_SUCCESS) {
             goto out;
         }
@@ -135,7 +135,7 @@ static ucg_status_t mca_coll_ucg_get_subnet_id(ucg_rank_t myrank, char *topology
     if (fp == NULL) {
         UCG_DEBUG("Topology file %s doesn't seem to exist", topology);
         return UCG_ERR_NOT_FOUND;
-}
+    }
 
     ucg_status_t status = UCG_OK;
     char line[1024];
@@ -170,17 +170,17 @@ static ucg_status_t mca_coll_ucg_get_location(ucg_rank_t rank, ucg_location_t *l
     ompi_proc_t *proc = ompi_comm_peer_lookup(comm, rank);
 
     location->field_mask = 0;
-    //get subnet id
+    // get subnet id
     int32_t subnet_id = 0;
     ucg_status_t status;
     status = mca_coll_ucg_get_subnet_id(rank, mca_coll_ucg_component.topology,
-                                         &subnet_id);
+                                        &subnet_id);
     if (status == UCG_OK) {
         location->field_mask |= UCG_LOCATION_FIELD_SUBNET_ID;
         location->subnet_id = subnet_id;
     }
 
-    //get node id
+    // get node id
     uint32_t node_id = 0;
     uint32_t *pnode_id = &node_id;
     OPAL_MODEX_RECV_VALUE_OPTIONAL(rc, PMIX_NODEID,
@@ -213,7 +213,7 @@ out:
 
 static int mca_coll_ucg_get_world_rank(void *arg, int rank)
 {
-    ompi_communicator_t *comm = (ompi_communicator_t *)arg;
+    ompi_communicator_t* comm = (ompi_communicator_t*)arg;
     ompi_proc_t *proc = ompi_comm_peer_lookup(comm, rank);
     return ((ompi_process_name_t*)&proc->super.proc_name)->vpid;
 }
@@ -508,7 +508,7 @@ static int mca_coll_ucg_create_group(mca_coll_ucg_module_t *module, ompi_communi
     params.id = ompi_comm_get_cid(comm);
     params.size = (uint32_t)ompi_comm_size(comm);
     params.myrank = (ucg_rank_t)ompi_comm_rank(comm);
-    mca_coll_ucg_fill_rank_map(&params.rank_map,  comm);
+    mca_coll_ucg_fill_rank_map(&params.rank_map, comm);
     mca_coll_ucg_fill_group_oob_group(&params.oob_group, comm);
 
     /* Initialize UCG group*/
@@ -568,7 +568,7 @@ static void mca_coll_ucg_module_construct(mca_coll_ucg_module_t *module)
         MCA_COLL_UCG_SET_CACHE_HANDLER(barrier);
         MCA_COLL_UCG_SET_CACHE_HANDLER(bcast);
         MCA_COLL_UCG_SET_CACHE_HANDLER(alltoallv);
-        MCA_COLL_UCG_SET_CACHE_HANDLER(scatterv);
+        // MCA_COLL_UCG_SET_CACHE_HANDLER(scatterv);
         MCA_COLL_UCG_SET_CACHE_HANDLER(gatherv);
         MCA_COLL_UCG_SET_CACHE_HANDLER(allgatherv);
 
@@ -584,7 +584,7 @@ static void mca_coll_ucg_module_construct(mca_coll_ucg_module_t *module)
         MCA_COLL_UCG_SET_HANDLER(barrier);
         MCA_COLL_UCG_SET_HANDLER(bcast);
         MCA_COLL_UCG_SET_HANDLER(alltoallv);
-        MCA_COLL_UCG_SET_HANDLER(scatterv);
+        // MCA_COLL_UCG_SET_HANDLER(scatterv);
         MCA_COLL_UCG_SET_HANDLER(gatherv);
         MCA_COLL_UCG_SET_HANDLER(allgatherv);
 
