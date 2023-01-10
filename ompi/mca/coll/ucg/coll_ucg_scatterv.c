@@ -1,7 +1,7 @@
 /* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil -*- */
 /*
  * Copyright (c) 2022-2022 Huawei Technologies Co., Ltd.
- *                                All rights reserved.
+ *                         All rights reserved.
  * COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -182,7 +182,7 @@ fallback:
 int mca_coll_ucg_iscatterv_cache(const void *sbuf, const int *scounts, const int *disps,
                                  ompi_datatype_t *sdtype, void *rbuf, int rcount,
                                  ompi_datatype_t *rdtype, int root,
-                                 ompi_communicator_t *comm, ompi_request_t ** request,
+                                 ompi_communicator_t *comm, ompi_request_t **request,
                                  mca_coll_base_module_t *module)
 {
     UCG_DEBUG("ucg iscatterv cache");
@@ -231,7 +231,7 @@ int mca_coll_ucg_scatterv_init(const void *sbuf, const int *scounts, const int *
                                ompi_datatype_t *sdtype, void *rbuf, int rcount,
                                ompi_datatype_t *rdtype, int root,
                                ompi_communicator_t *comm, ompi_info_t *info,
-                               ompi_request_t ** request, mca_coll_base_module_t *module)
+                               ompi_request_t **request, mca_coll_base_module_t *module)
 {
     UCG_DEBUG("ucg scatterv init");
 
