@@ -123,6 +123,16 @@ typedef struct {
     opal_free_list_t flist;
 } mca_coll_ucg_rpool_t;
 
+typedef struct {
+    opal_free_list_item_t super;
+    int buf[0];
+}mca_coll_ucg_subargs_t;
+OBJ_CLASS_DECLARATION(mca_coll_ucg_subargs_t);
+
+typedef struct {
+    opal_free_list_t flist;
+}mca_coll_ucg_subargs_pool_t;
+
 typedef struct mca_coll_bcast_args {
     void *buffer;
     int count;
@@ -224,6 +234,22 @@ static inline void mca_coll_ucg_rpool_put(mca_coll_ucg_req_t *coll_req)
     return;
 }
 
+extern mca_coll_ucg_subargs_pool_t mca_coll_ucg_subargs_pool;
+/* Initialize coll subargs pool */
+int mca_coll_ucg_subargs_pool_init(uint32_t size);
+/* cleanup the coll subargs pool */
+void mca_coll_ucg_subargs_pool_cleanup();
+/* get an empty coll subargs */
+static inline mca_coll_ucg_subargs_t* mca_coll_ucg_subargs_pool_get()
+{
+    return (mca_coll_ucg_subargs_t*)opal_free_list_wait(&mca_coll_ucg_subargs_pool.flist);
+}
+/* give back the coll subargs */
+static inline void mca_coll_ucg_subargs_pool_put(mca_coll_ucg_subargs_t *subargs)
+{
+    opal_free_list_return(&mca_coll_ucg_subargs_pool.flist, (opal_free_list_item_t*)subargs);
+    return;
+}
 
 /* Initialize request cache */
 int mca_coll_ucg_rcache_init(int size);
