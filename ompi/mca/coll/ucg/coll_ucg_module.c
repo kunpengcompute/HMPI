@@ -363,6 +363,13 @@ static int mca_coll_ucg_init_once(ompi_communicator_t *comm)
         goto err_cleanup_conv_pool;
     }
 
+    uint32_t size = (uint32_t)ompi_comm_size(comm);
+    rc = mca_coll_ucg_subargs_pool_init(size);
+    if (rc != OMPI_SUCCESS) {
+        UCG_ERROR("Failed to init subargs mpool, %d", rc);
+        goto err_cleanup_rpool;
+    }
+
     if (ompi_mpi_thread_multiple) {
         UCG_DEBUG("rcache is non-thread-safe, disable it");
         cm->max_rcache_size = 0;
@@ -372,7 +379,7 @@ static int mca_coll_ucg_init_once(ompi_communicator_t *comm)
         UCG_DEBUG("max rcache size is %d", cm->max_rcache_size);
         rc = mca_coll_ucg_rcache_init(cm->max_rcache_size);
         if (rc != OMPI_SUCCESS) {
-            goto err_cleanup_rpool;
+            goto err_cleanup_subargs_pool;
         }
     }
 
@@ -405,6 +412,8 @@ err_cleanup_rcache:
     if (cm->max_rcache_size > 0) {
         mca_coll_ucg_rcache_cleanup();
     }
+err_cleanup_subargs_pool:
+    mca_coll_ucg_subargs_pool_cleanup();
 err_cleanup_rpool:
     mca_coll_ucg_rpool_cleanup();
 err_cleanup_conv_pool:
