@@ -1,7 +1,7 @@
 /* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil -*- */
 /*
  * Copyright (c) 2022-2022 Huawei Technologies Co., Ltd.
- *                                All rights reserved.
+ *                         All rights reserved.
  * COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -27,7 +27,7 @@
  *  1. Initialize coll request
  *  2. Execute
  *  3. Add to cache
- * If any failure, go to fallback.
+ * If any failure, goto fallback.
  */
 #define MCA_COLL_UCG_REQUEST_PATTERN(_cache_key, _coll_request_init, ...) \
     do {\
@@ -54,7 +54,7 @@
         if (rc != OMPI_SUCCESS) { \
             mca_coll_ucg_request_cleanup(coll_req); \
             mca_coll_ucg_rpool_put(coll_req); \
-        } \
+        }\
     } while(0)
 
 /*
@@ -92,23 +92,23 @@
     } while(0)
 
 
-    typedef enum {
-        MCA_COLL_UCG_TYPE_BCAST,
-        MCA_COLL_UCG_TYPE_IBCAST,
-        MCA_COLL_UCG_TYPE_BARRIER,
-        MCA_COLL_UCG_TYPE_IBARRIER,
-        MCA_COLL_UCG_TYPE_ALLREDUCE,
-        MCA_COLL_UCG_TYPE_IALLREDUCE,
-        MCA_COLL_UCG_TYPE_ALLTOALLV,
-        MCA_COLL_UCG_TYPE_IALLTOALLV,
-        MCA_COLL_UCG_TYPE_SCATTERV,
-        MCA_COLL_UCG_TYPE_ISCATTERV,
-        MCA_COLL_UCG_TYPE_GATHERV,
-        MCA_COLL_UCG_TYPE_IGATHERV,
-        MCA_COLL_UCG_TYPE_ALLGATHERV,
-        MCA_COLL_UCG_TYPE_IALLGATHERV,
-        MCA_COLL_UCG_TYPE_LAST,
-    } mca_coll_ucg_type_t;
+typedef enum {
+    MCA_COLL_UCG_TYPE_BCAST,
+    MCA_COLL_UCG_TYPE_IBCAST,
+    MCA_COLL_UCG_TYPE_BARRIER,
+    MCA_COLL_UCG_TYPE_IBARRIER,
+    MCA_COLL_UCG_TYPE_ALLREDUCE,
+    MCA_COLL_UCG_TYPE_IALLREDUCE,
+    MCA_COLL_UCG_TYPE_ALLTOALLV,
+    MCA_COLL_UCG_TYPE_IALLTOALLV,
+    MCA_COLL_UCG_TYPE_SCATTERV,
+    MCA_COLL_UCG_TYPE_ISCATTERV,
+    MCA_COLL_UCG_TYPE_GATHERV,
+    MCA_COLL_UCG_TYPE_IGATHERV,
+    MCA_COLL_UCG_TYPE_ALLGATHERV,
+    MCA_COLL_UCG_TYPE_IALLGATHERV,
+    MCA_COLL_UCG_TYPE_LAST,
+} mca_coll_ucg_type_t;
 
 typedef struct {
     opal_list_t requests;
@@ -122,6 +122,16 @@ typedef struct {
 typedef struct {
     opal_free_list_t flist;
 } mca_coll_ucg_rpool_t;
+
+typedef struct {
+    opal_free_list_item_t super;
+    int buf[0];
+}mca_coll_ucg_subargs_t;
+OBJ_CLASS_DECLARATION(mca_coll_ucg_subargs_t);
+
+typedef struct {
+    opal_free_list_t flist;
+}mca_coll_ucg_subargs_pool_t;
 
 typedef struct mca_coll_bcast_args {
     void *buffer;
@@ -224,6 +234,22 @@ static inline void mca_coll_ucg_rpool_put(mca_coll_ucg_req_t *coll_req)
     return;
 }
 
+extern mca_coll_ucg_subargs_pool_t mca_coll_ucg_subargs_pool;
+/* Initialize coll subargs pool */
+int mca_coll_ucg_subargs_pool_init(uint32_t size);
+/* cleanup the coll subargs pool */
+void mca_coll_ucg_subargs_pool_cleanup();
+/* get an empty coll subargs */
+static inline mca_coll_ucg_subargs_t* mca_coll_ucg_subargs_pool_get()
+{
+    return (mca_coll_ucg_subargs_t*)opal_free_list_wait(&mca_coll_ucg_subargs_pool.flist);
+}
+/* give back the coll subargs */
+static inline void mca_coll_ucg_subargs_pool_put(mca_coll_ucg_subargs_t *subargs)
+{
+    opal_free_list_return(&mca_coll_ucg_subargs_pool.flist, (opal_free_list_item_t*)subargs);
+    return;
+}
 
 /* Initialize request cache */
 int mca_coll_ucg_rcache_init(int size);
@@ -265,10 +291,10 @@ int mca_coll_ucg_request_execute(mca_coll_ucg_req_t *coll_req);
 /* execute request in non-blocking mode */
 int mca_coll_ucg_request_execute_nb(mca_coll_ucg_req_t *coll_req);
 
-/* Try to find the request inthe cache and execute */
+/* Try to find the request in the cache and execute */
 int mca_coll_ucg_request_execute_cache(mca_coll_ucg_args_t *key);
 
-/* Try to find the request inthe cache and execute */
+/* Try to find the request in the cache and execute */
 int mca_coll_ucg_request_execute_cache_nb(mca_coll_ucg_args_t *key,
                                           mca_coll_ucg_req_t **coll_req);
 

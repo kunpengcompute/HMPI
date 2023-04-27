@@ -1,7 +1,7 @@
 /* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil -*- */
 /*
  * Copyright (c) 2022-2022 Huawei Technologies Co., Ltd.
- *                                All rights reserved.
+ *                         All rights reserved.
  * COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -16,21 +16,21 @@
 
 typedef struct {
     opal_free_list_t flist;
-}mca_coll_ucg_conv_pool_t;
+} mca_coll_ucg_conv_pool_t;
 
-typedef struct mca_coll_ucg_convertor{
-    opal_free_list_item_t    super;
-    ompi_datatype_t          *datatype;
-    opal_convertor_t         opal_conv;
-    size_t                   offset;
-}mca_coll_ucg_convertor_t;
+typedef struct mca_coll_ucg_convertor {
+    opal_free_list_item_t   super;
+    ompi_datatype_t         *datatype;
+    opal_convertor_t        opal_conv;
+    size_t                  offset;
+} mca_coll_ucg_convertor_t;
 OBJ_CLASS_DECLARATION(mca_coll_ucg_convertor_t);
 
 typedef struct mca_coll_ucg_type_table {
     ucg_dt_h predefined_dt[UCG_DT_TYPE_PREDEFINED_LAST];
     ucg_op_h predefined_op[UCG_OP_TYPE_PREDEFINED_LAST];
-    int attr_key;/*key of saving user-defined ucg dt */
-}mca_coll_ucg_type_table_t;
+    int attr_key; /* key of saving user-defined ucg dt */
+} mca_coll_ucg_type_table_t;
 
 /* Initialize the convertor pool */
 int mca_coll_ucg_conv_pool_init(void);

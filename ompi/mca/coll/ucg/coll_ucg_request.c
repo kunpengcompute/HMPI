@@ -1,7 +1,7 @@
 /* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil -*- */
 /*
  * Copyright (c) 2022-2022 Huawei Technologies Co., Ltd.
- *                                All rights reserved.
+ *                         All rights reserved.
  * COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -26,6 +26,8 @@
 
 mca_coll_ucg_rpool_t mca_coll_ucg_rpool = {0};
 static mca_coll_ucg_rcache_t mca_coll_ucg_rcache;
+
+mca_coll_ucg_subargs_pool_t mca_coll_ucg_subargs_pool = {0};
 
 static void ucg_coll_ucg_rcache_ref(mca_coll_ucg_req_t *coll_req)
 {
@@ -148,7 +150,6 @@ static void mca_coll_ucg_request_complete(void *arg, ucg_status_t status)
     } else {
         ompi_req->req_status.MPI_ERROR = MPI_ERR_INTERN;
     }
-    ompi_req->req_state = OMPI_REQUEST_INACTIVE;
     ompi_request_complete(ompi_req, true);
     return;
 }
@@ -184,6 +185,11 @@ OBJ_CLASS_INSTANCE(mca_coll_ucg_req_t,
                    NULL,
                    NULL);
 
+OBJ_CLASS_INSTANCE(mca_coll_ucg_subargs_t,
+                   opal_free_list_item_t,
+                   NULL,
+                   NULL);
+
 int mca_coll_ucg_rpool_init()
 {
     OBJ_CONSTRUCT(&mca_coll_ucg_rpool.flist, opal_free_list_t);
@@ -198,6 +204,24 @@ int mca_coll_ucg_rpool_init()
 void mca_coll_ucg_rpool_cleanup()
 {
     OBJ_DESTRUCT(&mca_coll_ucg_rpool.flist);
+    return;
+}
+
+int mca_coll_ucg_subargs_pool_init(uint32_t size)
+{
+    OBJ_CONSTRUCT(&mca_coll_ucg_subargs_pool.flist, opal_free_list_t);
+    int rc = opal_free_list_init(&mca_coll_ucg_subargs_pool.flist, 
+                                 sizeof(mca_coll_ucg_subargs_t) + 4 * size * sizeof(int),
+                                 opal_cache_line_size, OBJ_CLASS(mca_coll_ucg_subargs_t),
+                                 0, 0,
+                                 0, INT_MAX, 128,
+                                 NULL, 0, NULL, NULL, NULL);
+    return rc == OPAL_SUCCESS ? OMPI_SUCCESS : OMPI_ERROR;
+}
+
+void mca_coll_ucg_subargs_pool_cleanup()
+{
+    OBJ_DESTRUCT(&mca_coll_ucg_subargs_pool.flist);
     return;
 }
 
@@ -216,7 +240,7 @@ int mca_coll_ucg_rcache_init(int size)
 void mca_coll_ucg_rcache_cleanup()
 {
     UCG_INFO_IF(mca_coll_ucg_rcache.total > 0, "rcache hit rate: %.2f%% (%lu/%lu)",
-                100.0 * mca_coll_ucg_rcache.hit / mca_coll_ucg_rcache.total,
+                100.0 * mca_coll_ucg_rcache.hit / mca_coll_ucg_rcache.total ,
                 mca_coll_ucg_rcache.hit, mca_coll_ucg_rcache.total);
     opal_list_t *requests = &mca_coll_ucg_rcache.requests;
     if (!opal_list_is_empty(requests)) {
@@ -226,11 +250,124 @@ void mca_coll_ucg_rcache_cleanup()
     return;
 }
 
+static void mca_coll_ucg_rcache_coll_req_args_init(mca_coll_ucg_args_t *dst,
+                                                   const mca_coll_ucg_args_t *src)
+{
+    *dst = *src;
+    int *scounts, *sdispls, *rcounts, *rdispls, *disps;
+    uint32_t size = (uint32_t)ompi_comm_size(src->comm);
+    mca_coll_ucg_subargs_t *args = mca_coll_ucg_subargs_pool_get();
+
+    switch (src->coll_type) {
+        case MCA_COLL_UCG_TYPE_ALLTOALLV:
+        case MCA_COLL_UCG_TYPE_IALLTOALLV:
+            if (src->alltoallv.scounts == NULL ||
+                src->alltoallv.sdispls == NULL ||
+                src->alltoallv.rcounts == NULL ||
+                src->alltoallv.rdispls == NULL) {
+                return;
+            }
+            scounts = args->buf;
+            sdispls = scounts + size;
+            rcounts = sdispls + size;
+            rdispls = rcounts + size;
+            for (int i = 0; i < size; ++i) {
+                scounts[i] = src->alltoallv.scounts[i];
+                sdispls[i] = src->alltoallv.sdispls[i];
+                rcounts[i] = src->alltoallv.rcounts[i];
+                rdispls[i] = src->alltoallv.rdispls[i];
+            }
+            dst->alltoallv.scounts = scounts;
+            dst->alltoallv.sdispls = sdispls;
+            dst->alltoallv.rcounts = rcounts;
+            dst->alltoallv.rdispls = rdispls;
+            break;
+        case MCA_COLL_UCG_TYPE_SCATTERV:
+        case MCA_COLL_UCG_TYPE_ISCATTERV:
+            if (src->scatterv.scounts == NULL ||
+                src->scatterv.disps == NULL) {
+                return;
+            }
+            scounts = args->buf;
+            disps = scounts + size;
+            for (int i = 0; i < size; ++i) {
+                scounts[i] = src->scatterv.scounts[i];
+                disps[i] = src->scatterv.disps[i];
+            }
+            dst->scatterv.scounts = scounts;
+            dst->scatterv.disps = disps;
+            break;
+        case MCA_COLL_UCG_TYPE_GATHERV:
+        case MCA_COLL_UCG_TYPE_IGATHERV:
+             if (src->gatherv.rcounts == NULL ||
+                 src->gatherv.disps == NULL) {
+                return;
+            }
+            rcounts = args->buf;
+            disps = rcounts + size;
+            for (int i = 0; i < size; ++i) {
+                rcounts[i] = src->gatherv.rcounts[i];
+                disps[i] = src->gatherv.disps[i];
+            }
+            dst->gatherv.rcounts = rcounts;
+            dst->gatherv.disps = disps;
+            break;
+        case MCA_COLL_UCG_TYPE_ALLGATHERV:
+        case MCA_COLL_UCG_TYPE_IALLGATHERV:
+             if (src->allgatherv.rcounts == NULL ||
+                 src->allgatherv.disps == NULL) {
+                return;
+            }
+            rcounts = args->buf;
+            disps = rcounts + size;
+            for (int i = 0; i < size; ++i) {
+                rcounts[i] = src->allgatherv.rcounts[i];
+                disps[i] = src->allgatherv.disps[i];
+            }
+            dst->allgatherv.rcounts = rcounts;
+            dst->allgatherv.disps = disps;
+            break;
+        default:
+            break;
+    }
+    return;
+}
+
+static void mca_coll_ucg_rcache_coll_req_args_uninit(mca_coll_ucg_args_t *args)
+{
+    void *buf = NULL;
+    switch (args->coll_type) {
+        case MCA_COLL_UCG_TYPE_ALLTOALLV:
+        case MCA_COLL_UCG_TYPE_IALLTOALLV:
+            buf = (void *)args->alltoallv.scounts;
+            break;
+        case MCA_COLL_UCG_TYPE_SCATTERV:
+        case MCA_COLL_UCG_TYPE_ISCATTERV:
+            buf = (void *)args->scatterv.scounts;
+            break;
+        case MCA_COLL_UCG_TYPE_GATHERV:
+        case MCA_COLL_UCG_TYPE_IGATHERV:
+            buf = (void *)args->gatherv.rcounts;
+            break;
+        case MCA_COLL_UCG_TYPE_ALLGATHERV:
+        case MCA_COLL_UCG_TYPE_IALLGATHERV:
+            buf = (void *)args->allgatherv.rcounts;
+            break;
+        default:
+            break;
+    }
+    if (buf != NULL) {
+        mca_coll_ucg_subargs_t *data = container_of(buf, mca_coll_ucg_subargs_t, buf);
+        mca_coll_ucg_subargs_pool_put(data);
+    }
+    return;
+}
+
 void mca_coll_ucg_rcache_mark_cacheable(mca_coll_ucg_req_t *coll_req,
                                         mca_coll_ucg_args_t *key)
 {
     OBJ_CONSTRUCT(&coll_req->list, opal_list_item_t);
-    coll_req->args = *key;
+    mca_coll_ucg_rcache_coll_req_args_init(&coll_req->args, key);    // deep copy
     ucg_coll_ucg_rcache_ref(coll_req);
     coll_req->cacheable = true;
     return;
@@ -247,6 +384,22 @@ int mca_coll_ucg_rcache_add(mca_coll_ucg_req_t *coll_req, mca_coll_ucg_args_t *k
     return OMPI_SUCCESS;
 }
 
+static bool mca_coll_ucg_rcache_compare(int size, const int *array1, const int *array2)
+{
+    if (array1 == NULL || array2 == NULL) {
+        return true;
+    }
+    if (array1 != array2) {
+        return false;
+    }
+    for (int i = 0; i < size; ++i) {
+        if (array1[i] != array2[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static bool mca_coll_ucg_rcache_is_same(const mca_coll_ucg_args_t *key1,
                                         const mca_coll_ucg_args_t *key2)
 {
@@ -258,6 +411,7 @@ static bool mca_coll_ucg_rcache_is_same(const mca_coll_ucg_args_t *key1,
         return false;
     }
 
+    uint32_t comm_size = (uint32_t)ompi_comm_size(key1->comm);
     bool is_same = false;
     switch (key1->coll_type) {
         case MCA_COLL_UCG_TYPE_BCAST:
@@ -291,13 +445,14 @@ static bool mca_coll_ucg_rcache_is_same(const mca_coll_ucg_args_t *key1,
             const mca_coll_alltoallv_args_t *args1 = &key1->alltoallv;
             const mca_coll_alltoallv_args_t *args2 = &key2->alltoallv;
             is_same = args1->sbuf == args2->sbuf &&
-                      args1->scounts == args2->scounts &&
-                      args1->sdispls == args2->sdispls &&
                       args1->sdtype == args2->sdtype &&
                       args1->rbuf == args2->rbuf &&
-                      args1->rcounts == args2->rcounts &&
-                      args1->rdispls == args2->rdispls &&
                       args1->rdtype == args2->rdtype;
+            is_same = is_same &&
+                      mca_coll_ucg_rcache_compare(comm_size, args1->scounts, args2->scounts) &&
+                      mca_coll_ucg_rcache_compare(comm_size, args1->sdispls, args2->sdispls) &&
+                      mca_coll_ucg_rcache_compare(comm_size, args1->rcounts, args2->rcounts) &&
+                      mca_coll_ucg_rcache_compare(comm_size, args1->rdispls, args2->rdispls);
             break;
         }
         case MCA_COLL_UCG_TYPE_SCATTERV:
@@ -305,13 +460,14 @@ static bool mca_coll_ucg_rcache_is_same(const mca_coll_ucg_args_t *key1,
             const mca_coll_scatterv_args_t *args1 = &key1->scatterv;
             const mca_coll_scatterv_args_t *args2 = &key2->scatterv;
             is_same = args1->sbuf == args2->sbuf &&
-                      args1->scounts == args2->scounts &&
-                      args1->disps == args2->disps &&
                       args1->sdtype == args2->sdtype &&
                       args1->rbuf == args2->rbuf &&
                       args1->rcount == args2->rcount &&
                       args1->rdtype == args2->rdtype &&
                       args1->root == args2->root;
+            is_same = is_same &&
+                      mca_coll_ucg_rcache_compare(comm_size, args1->scounts, args2->scounts) &&
+                      mca_coll_ucg_rcache_compare(comm_size, args1->disps, args2->disps);
             break;
         }
         case MCA_COLL_UCG_TYPE_GATHERV:
@@ -322,10 +478,11 @@ static bool mca_coll_ucg_rcache_is_same(const mca_coll_ucg_args_t *key1,
                       args1->scount == args2->scount &&
                       args1->sdtype == args2->sdtype &&
                       args1->rbuf == args2->rbuf &&
-                      args1->rcounts == args2->rcounts &&
-                      args1->disps == args2->disps &&
                       args1->rdtype == args2->rdtype &&
                       args1->root == args2->root;
+            is_same = is_same &&
+                      mca_coll_ucg_rcache_compare(comm_size, args1->rcounts, args2->rcounts) &&
+                      mca_coll_ucg_rcache_compare(comm_size, args1->disps, args2->disps);
             break;
         }
         case MCA_COLL_UCG_TYPE_ALLGATHERV:
@@ -336,9 +493,10 @@ static bool mca_coll_ucg_rcache_is_same(const mca_coll_ucg_args_t *key1,
                       args1->scount == args2->scount &&
                       args1->sdtype == args2->sdtype &&
                       args1->rbuf == args2->rbuf &&
-                      args1->rcounts == args2->rcounts &&
-                      args1->disps == args2->disps &&
                       args1->rdtype == args2->rdtype;
+            is_same = is_same &&
+                      mca_coll_ucg_rcache_compare(comm_size, args1->rcounts, args2->rcounts) &&
+                      mca_coll_ucg_rcache_compare(comm_size, args1->disps, args2->disps);
             break;
         }
         default:
@@ -385,6 +543,7 @@ void mca_coll_ucg_rcache_del(mca_coll_ucg_req_t *coll_req)
 
     coll_req->cacheable = false;
     ucg_coll_ucg_rcache_deref(coll_req);
+    mca_coll_ucg_rcache_coll_req_args_uninit(&coll_req->args);
     OBJ_DESTRUCT(&coll_req->list);
 
     mca_coll_ucg_request_cleanup(coll_req);
@@ -438,14 +597,14 @@ int mca_coll_ucg_request_common_init(mca_coll_ucg_req_t *coll_req,
 
 void mca_coll_ucg_request_cleanup(mca_coll_ucg_req_t *coll_req)
 {
-    //clean up resource initialized by ${coll_type}_init
+    // clean up resource initialized by ${coll_type}_init
     if (coll_req->ucg_req != NULL) {
         ucg_status_t status = ucg_request_cleanup(coll_req->ucg_req);
         if (status != UCG_OK) {
             UCG_ERROR("Failed to cleanup ucg request, %s", ucg_status_string(status));
         }
     }
-    //clean up resource initialized by common_init
+    // clean up resource initialized by common_init
     OMPI_REQUEST_FINI(&coll_req->super.super);
     return;
 }
@@ -456,23 +615,23 @@ int mca_coll_ucg_request_execute(mca_coll_ucg_req_t *coll_req)
 
     ucg_status_t status;
     status = ucg_request_start(ucg_req);
-        if (status != UCG_OK) {
-                UCG_DEBUG("Failed to start ucg request, %s", ucg_status_string(status));
-                return OMPI_ERROR;
-        }
+    if (status != UCG_OK) {
+        UCG_DEBUG("Failed to start ucg request, %s", ucg_status_string(status));
+        return OMPI_ERROR;
+    }
 
-        int count = 0;
-        while (UCG_INPROGRESS == (status = ucg_request_test(ucg_req))) {
-            //TODO: test wether opal_progress() can be removed
-            if (++count % 1000 == 0) {
-                opal_progress();
-            }
+    int count = 0;
+    while (UCG_INPROGRESS == (status = ucg_request_test(ucg_req))) {
+        //TODO: test wether opal_progress() can be removed
+        if (++count % 1000 == 0) {
+            opal_progress();
         }
-        if (status != UCG_OK) {
-                UCG_DEBUG("Failed to progress ucg request, %s", ucg_status_string(status));
-                return OMPI_ERROR;
-        }
-        return OMPI_SUCCESS;
+    }
+    if (status != UCG_OK) {
+        UCG_DEBUG("Failed to progress ucg request, %s", ucg_status_string(status));
+        return OMPI_ERROR;
+    }
+    return OMPI_SUCCESS;
 }
 
 int mca_coll_ucg_request_execute_nb(mca_coll_ucg_req_t *coll_req)
@@ -522,6 +681,6 @@ int mca_coll_ucg_request_execute_cache_nb(mca_coll_ucg_args_t *key,
         return rc;
     }
     *coll_req = tmp_coll_req;
-    //mca_coll_ucg_request_free() will put the coll_req into cache again.
+    // mca_coll_ucg_request_free() will put the coll_req into cache again.
     return OMPI_SUCCESS;
 }

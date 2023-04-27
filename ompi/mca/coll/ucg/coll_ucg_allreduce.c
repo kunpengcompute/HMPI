@@ -1,7 +1,7 @@
 /* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil -*- */
 /*
  * Copyright (c) 2022-2022 Huawei Technologies Co., Ltd.
- *                                All rights reserved.
+ *                         All rights reserved.
  * COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -28,7 +28,7 @@ static int mca_coll_ucg_request_allreduce_init(mca_coll_ucg_req_t *coll_req,
         return rc;
     }
 
-    //TODO: Check the memory type of buffer if possible
+    // TODO: Check the memory type of buffer if possible
     ucg_request_h ucg_req;
     const void *tmp_sbuf = sbuf == MPI_IN_PLACE ? UCG_IN_PLACE : sbuf;
     ucg_status_t status = ucg_request_allreduce_init(tmp_sbuf, rbuf, count, ucg_dt, ucg_op,
@@ -227,6 +227,6 @@ int mca_coll_ucg_allreduce_init(const void *sbuf, void *rbuf, int count, ompi_da
 
 fallback:
     UCG_DEBUG("fallback allreduce init");
-    return ucg_module->previous_allreduce_init(sbuf, rbuf, count,datatype, op, comm, info,
+    return ucg_module->previous_allreduce_init(sbuf, rbuf, count, datatype, op, comm, info,
                                                request, ucg_module->previous_allreduce_module);
 }

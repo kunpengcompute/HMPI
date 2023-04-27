@@ -1,7 +1,7 @@
 /* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil -*- */
 /*
  * Copyright (c) 2022-2022 Huawei Technologies Co., Ltd.
- *                                All rights reserved.
+ *                         All rights reserved.
  * COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -35,7 +35,7 @@ static int mca_coll_ucg_request_alltoallv_init(mca_coll_ucg_req_t *coll_req,
         return rc;
     }
 
-    //TODO: Check the memory type of buffer if possible
+    // TODO: Check the memory type of buffer if possible
     ucg_request_h ucg_req;
     const void *tmp_sbuf = sbuf == MPI_IN_PLACE ? UCG_IN_PLACE : sbuf;
     ucg_status_t status = ucg_request_alltoallv_init(tmp_sbuf, scounts, sdispls, ucg_send_dt,
