@@ -285,7 +285,7 @@ static void *mca_coll_ucg_get_ucp_worker(void *arg)
     return (void*)ompi_pml_ucx.ucp_worker;
 }
 
-static int mca_coll_ucg_init()
+static int mca_coll_ucg_init(void)
 {
     mca_coll_ucg_component_t *cm = &mca_coll_ucg_component;
     ucg_status_t status;
@@ -330,7 +330,7 @@ static int mca_coll_ucg_init()
     return OMPI_SUCCESS;
 }
 
-static void mca_coll_ucg_cleanup()
+static void mca_coll_ucg_cleanup(void)
 {
     mca_coll_ucg_component_t *cm = &mca_coll_ucg_component;
     ucg_cleanup(cm->ucg_context);
@@ -408,7 +408,6 @@ err_free_blacklist:
     if (cm->blacklist != NULL) {
         opal_argv_free(cm->blacklist);
     }
-err_cleanup_rcache:
     if (cm->max_rcache_size > 0) {
         mca_coll_ucg_rcache_cleanup();
     }

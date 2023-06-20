@@ -42,9 +42,9 @@ void mca_coll_ucg_conv_pool_cleanup(void);
  *
  * It depends on ompi attr, should be invoked after ompi_attr_init()
  */
-int mca_coll_ucg_type_init();
+int mca_coll_ucg_type_init(void);
 /* Cleanup ucg type */
-void mca_coll_ucg_type_cleanup();
+void mca_coll_ucg_type_cleanup(void);
 
 void mca_coll_ucg_type_free_kv(void);
 /**

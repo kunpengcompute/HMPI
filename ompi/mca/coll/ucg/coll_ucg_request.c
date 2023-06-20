@@ -113,11 +113,11 @@ static void ucg_coll_ucg_rcache_deref(mca_coll_ucg_req_t *coll_req)
     return;
 }
 
-static inline void mca_coll_ucg_rcache_full_adjust()
+static inline void mca_coll_ucg_rcache_full_adjust(void)
 {
     // LRU, remove the last item
     opal_list_t *requests = &mca_coll_ucg_rcache.requests;
-    if (opal_list_get_size(requests) == mca_coll_ucg_rcache.max_size) {
+    if ((int)opal_list_get_size(requests) == mca_coll_ucg_rcache.max_size) {
         opal_list_item_t *item = opal_list_remove_last(requests);
         mca_coll_ucg_req_t *coll_req = container_of(item, mca_coll_ucg_req_t, list);
         mca_coll_ucg_rcache_del(coll_req);
@@ -127,7 +127,7 @@ static inline void mca_coll_ucg_rcache_full_adjust()
 
 static int mca_coll_ucg_request_start(size_t count, ompi_request_t **requests)
 {
-    for (int i = 0; i < count; ++i) {
+    for (size_t i = 0; i < count; ++i) {
         mca_coll_ucg_req_t *coll_req = (mca_coll_ucg_req_t*)requests[i];
         if (coll_req == NULL) {
             continue;
@@ -190,7 +190,7 @@ OBJ_CLASS_INSTANCE(mca_coll_ucg_subargs_t,
                    NULL,
                    NULL);
 
-int mca_coll_ucg_rpool_init()
+int mca_coll_ucg_rpool_init(void)
 {
     OBJ_CONSTRUCT(&mca_coll_ucg_rpool.flist, opal_free_list_t);
     int rc = opal_free_list_init(&mca_coll_ucg_rpool.flist, sizeof(mca_coll_ucg_req_t),
@@ -201,7 +201,7 @@ int mca_coll_ucg_rpool_init()
     return rc == OPAL_SUCCESS ? OMPI_SUCCESS : OMPI_ERROR;
 }
 
-void mca_coll_ucg_rpool_cleanup()
+void mca_coll_ucg_rpool_cleanup(void)
 {
     OBJ_DESTRUCT(&mca_coll_ucg_rpool.flist);
     return;
@@ -219,7 +219,7 @@ int mca_coll_ucg_subargs_pool_init(uint32_t size)
     return rc == OPAL_SUCCESS ? OMPI_SUCCESS : OMPI_ERROR;
 }
 
-void mca_coll_ucg_subargs_pool_cleanup()
+void mca_coll_ucg_subargs_pool_cleanup(void)
 {
     OBJ_DESTRUCT(&mca_coll_ucg_subargs_pool.flist);
     return;
@@ -237,7 +237,7 @@ int mca_coll_ucg_rcache_init(int size)
     return OMPI_SUCCESS;
 }
 
-void mca_coll_ucg_rcache_cleanup()
+void mca_coll_ucg_rcache_cleanup(void)
 {
     UCG_INFO_IF(mca_coll_ucg_rcache.total > 0, "rcache hit rate: %.2f%% (%lu/%lu)",
                 100.0 * mca_coll_ucg_rcache.hit / mca_coll_ucg_rcache.total ,
@@ -255,7 +255,7 @@ static void mca_coll_ucg_rcache_coll_req_args_init(mca_coll_ucg_args_t *dst,
 {
     *dst = *src;
     int *scounts, *sdispls, *rcounts, *rdispls, *disps;
-    uint32_t size = (uint32_t)ompi_comm_size(src->comm);
+    uint32_t i, size = (uint32_t)ompi_comm_size(src->comm);
     mca_coll_ucg_subargs_t *args = mca_coll_ucg_subargs_pool_get();
 
     switch (src->coll_type) {
@@ -271,7 +271,7 @@ static void mca_coll_ucg_rcache_coll_req_args_init(mca_coll_ucg_args_t *dst,
             sdispls = scounts + size;
             rcounts = sdispls + size;
             rdispls = rcounts + size;
-            for (int i = 0; i < size; ++i) {
+            for (i = 0; i < size; ++i) {
                 scounts[i] = src->alltoallv.scounts[i];
                 sdispls[i] = src->alltoallv.sdispls[i];
                 rcounts[i] = src->alltoallv.rcounts[i];
@@ -290,7 +290,7 @@ static void mca_coll_ucg_rcache_coll_req_args_init(mca_coll_ucg_args_t *dst,
             }
             scounts = args->buf;
             disps = scounts + size;
-            for (int i = 0; i < size; ++i) {
+            for (i = 0; i < size; ++i) {
                 scounts[i] = src->scatterv.scounts[i];
                 disps[i] = src->scatterv.disps[i];
             }
@@ -305,7 +305,7 @@ static void mca_coll_ucg_rcache_coll_req_args_init(mca_coll_ucg_args_t *dst,
             }
             rcounts = args->buf;
             disps = rcounts + size;
-            for (int i = 0; i < size; ++i) {
+            for (i = 0; i < size; ++i) {
                 rcounts[i] = src->gatherv.rcounts[i];
                 disps[i] = src->gatherv.disps[i];
             }
@@ -320,7 +320,7 @@ static void mca_coll_ucg_rcache_coll_req_args_init(mca_coll_ucg_args_t *dst,
             }
             rcounts = args->buf;
             disps = rcounts + size;
-            for (int i = 0; i < size; ++i) {
+            for (i = 0; i < size; ++i) {
                 rcounts[i] = src->allgatherv.rcounts[i];
                 disps[i] = src->allgatherv.disps[i];
             }
