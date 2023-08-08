@@ -17,17 +17,17 @@
 #include "ompi/mca/pml/pml.h"
 #include "ompi/mca/pml/ucx/pml_ucx.h"
 
-/* Ensure coll ucg can be dlopened if global var "ompi_pml_ucx" is not existed */
+/* Ensure coll ucg can be dlopened if global var "ompi_pml_ucx" is not existed*/
 mca_pml_ucx_module_t ompi_pml_ucx __attribute__((weak));
 
 #define MCA_COLL_UCG_SET_HANDLER(_api) \
     if (mca_coll_ucg_is_api_enable(#_api)) { \
-        module->super.coll_ ## _api = mca_coll_ucg_ ## _api; \
+         module->super.coll_ ## _api = mca_coll_ucg_ ## _api;\
     }
 
 #define MCA_COLL_UCG_SET_CACHE_HANDLER(_api) \
     if (mca_coll_ucg_is_api_enable(#_api)) { \
-        module->super.coll_ ## _api = mca_coll_ucg_ ## _api ## _cache; \
+         module->super.coll_ ## _api = mca_coll_ucg_ ## _api ## _cache; \
     }
 
 #define MCA_COLL_UCG_SAVE_FALLBACK(_api) \
@@ -90,8 +90,8 @@ static ucg_status_t mca_coll_ucg_oob_blocking_allgather(const void *sendbuf,
         //bcast recvbuf to all rank
         for (i = 1; i < size; i++) {
             rc = MCA_PML_CALL(send((char *)recvbuf, size * count, MPI_CHAR, i,
-                              MCA_COLL_BASE_TAG_ALLGATHER,
-                              MCA_PML_BASE_SEND_STANDARD, comm));
+                                   MCA_COLL_BASE_TAG_ALLGATHER,
+                                   MCA_PML_BASE_SEND_STANDARD, comm));
             if (rc != OMPI_SUCCESS) {
                 goto out;
             }
@@ -99,15 +99,15 @@ static ucg_status_t mca_coll_ucg_oob_blocking_allgather(const void *sendbuf,
     } else {
         //send data to rank 0
         rc = MCA_PML_CALL(send((char *)sendbuf, count, MPI_CHAR, 0, MCA_COLL_BASE_TAG_ALLGATHER,
-                          MCA_PML_BASE_SEND_STANDARD, comm));
+                               MCA_PML_BASE_SEND_STANDARD, comm));
         if (rc != OMPI_SUCCESS) {
             goto out;
         }
 
         //recv gather data from rank 0
         rc = MCA_PML_CALL(recv((char *)recvbuf, size * count, MPI_CHAR, 0,
-                          MCA_COLL_BASE_TAG_ALLGATHER, comm,
-                          MPI_STATUS_IGNORE));
+                               MCA_COLL_BASE_TAG_ALLGATHER, comm,
+                               MPI_STATUS_IGNORE));
         if (rc != OMPI_SUCCESS) {
             goto out;
         }
@@ -575,7 +575,7 @@ static void mca_coll_ucg_module_construct(mca_coll_ucg_module_t *module)
         MCA_COLL_UCG_SET_CACHE_HANDLER(allreduce);
         MCA_COLL_UCG_SET_CACHE_HANDLER(barrier);
         MCA_COLL_UCG_SET_CACHE_HANDLER(bcast);
-        // MCA_COLL_UCG_SET_CACHE_HANDLER(alltoallv);
+        MCA_COLL_UCG_SET_CACHE_HANDLER(alltoallv);
         // MCA_COLL_UCG_SET_CACHE_HANDLER(scatterv);
         MCA_COLL_UCG_SET_CACHE_HANDLER(gatherv);
         MCA_COLL_UCG_SET_CACHE_HANDLER(allgatherv);
@@ -583,7 +583,7 @@ static void mca_coll_ucg_module_construct(mca_coll_ucg_module_t *module)
         MCA_COLL_UCG_SET_CACHE_HANDLER(iallreduce);
         MCA_COLL_UCG_SET_CACHE_HANDLER(ibarrier);
         MCA_COLL_UCG_SET_CACHE_HANDLER(ibcast);
-        // MCA_COLL_UCG_SET_CACHE_HANDLER(ialltoallv);
+        MCA_COLL_UCG_SET_CACHE_HANDLER(ialltoallv);
         MCA_COLL_UCG_SET_CACHE_HANDLER(iscatterv);
         MCA_COLL_UCG_SET_CACHE_HANDLER(igatherv);
         MCA_COLL_UCG_SET_CACHE_HANDLER(iallgatherv);
@@ -591,7 +591,7 @@ static void mca_coll_ucg_module_construct(mca_coll_ucg_module_t *module)
         MCA_COLL_UCG_SET_HANDLER(allreduce);
         MCA_COLL_UCG_SET_HANDLER(barrier);
         MCA_COLL_UCG_SET_HANDLER(bcast);
-        // MCA_COLL_UCG_SET_HANDLER(alltoallv);
+        MCA_COLL_UCG_SET_HANDLER(alltoallv);
         // MCA_COLL_UCG_SET_HANDLER(scatterv);
         MCA_COLL_UCG_SET_HANDLER(gatherv);
         MCA_COLL_UCG_SET_HANDLER(allgatherv);
@@ -599,7 +599,7 @@ static void mca_coll_ucg_module_construct(mca_coll_ucg_module_t *module)
         MCA_COLL_UCG_SET_HANDLER(iallreduce);
         MCA_COLL_UCG_SET_HANDLER(ibarrier);
         MCA_COLL_UCG_SET_HANDLER(ibcast);
-        // MCA_COLL_UCG_SET_HANDLER(ialltoallv);
+        MCA_COLL_UCG_SET_HANDLER(ialltoallv);
         MCA_COLL_UCG_SET_HANDLER(iscatterv);
         MCA_COLL_UCG_SET_HANDLER(igatherv);
         MCA_COLL_UCG_SET_HANDLER(iallgatherv);
@@ -608,7 +608,7 @@ static void mca_coll_ucg_module_construct(mca_coll_ucg_module_t *module)
     MCA_COLL_UCG_SET_HANDLER(allreduce_init);
     MCA_COLL_UCG_SET_HANDLER(barrier_init);
     MCA_COLL_UCG_SET_HANDLER(bcast_init);
-    // MCA_COLL_UCG_SET_HANDLER(alltoallv_init);
+    MCA_COLL_UCG_SET_HANDLER(alltoallv_init);
     MCA_COLL_UCG_SET_HANDLER(scatterv_init);
     MCA_COLL_UCG_SET_HANDLER(gatherv_init);
     MCA_COLL_UCG_SET_HANDLER(allgatherv_init);
