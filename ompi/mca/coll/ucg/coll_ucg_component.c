@@ -1,6 +1,6 @@
 /* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil -*- */
 /*
- * Copyright (c) 2022-2022 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2022-2023 Huawei Technologies Co., Ltd.
  *                         All rights reserved.
  * COPYRIGHT$
  *
@@ -74,7 +74,7 @@ mca_coll_ucg_component_t mca_coll_ucg_component = {
     /* MCA parameter */
     .priority = 90,             /* priority */
     .verbose = 2,               /* verbose level */
-    .max_rcache_size = 0,
+    .max_rcache_size = 1024,
     .disable_coll = NULL,
     .topology = NULL,
 
