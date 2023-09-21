@@ -1,6 +1,6 @@
 /* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil -*- */
 /*
- * Copyright (c) 2022-2022 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2022-2023 Huawei Technologies Co., Ltd.
  *                         All rights reserved.
  * COPYRIGHT$
  *
@@ -256,7 +256,7 @@ static void mca_coll_ucg_rcache_coll_req_args_init(mca_coll_ucg_args_t *dst,
     *dst = *src;
     int *scounts, *sdispls, *rcounts, *rdispls, *disps;
     uint32_t i, size = (uint32_t)ompi_comm_size(src->comm);
-    mca_coll_ucg_subargs_t *args = mca_coll_ucg_subargs_pool_get();
+    mca_coll_ucg_subargs_t *args = NULL;
 
     switch (src->coll_type) {
         case MCA_COLL_UCG_TYPE_ALLTOALLV:
@@ -267,6 +267,7 @@ static void mca_coll_ucg_rcache_coll_req_args_init(mca_coll_ucg_args_t *dst,
                 src->alltoallv.rdispls == NULL) {
                 return;
             }
+            args = mca_coll_ucg_subargs_pool_get();
             scounts = args->buf;
             sdispls = scounts + size;
             rcounts = sdispls + size;
@@ -285,9 +286,11 @@ static void mca_coll_ucg_rcache_coll_req_args_init(mca_coll_ucg_args_t *dst,
         case MCA_COLL_UCG_TYPE_SCATTERV:
         case MCA_COLL_UCG_TYPE_ISCATTERV:
             if (src->scatterv.scounts == NULL ||
-                src->scatterv.disps == NULL) {
+                src->scatterv.disps == NULL ||
+                ompi_comm_rank(src->comm) != src->scatterv.root) {
                 return;
             }
+            args = mca_coll_ucg_subargs_pool_get();
             scounts = args->buf;
             disps = scounts + size;
             for (i = 0; i < size; ++i) {
@@ -299,10 +302,12 @@ static void mca_coll_ucg_rcache_coll_req_args_init(mca_coll_ucg_args_t *dst,
             break;
         case MCA_COLL_UCG_TYPE_GATHERV:
         case MCA_COLL_UCG_TYPE_IGATHERV:
-             if (src->gatherv.rcounts == NULL ||
-                 src->gatherv.disps == NULL) {
+            if (src->gatherv.rcounts == NULL ||
+                src->gatherv.disps == NULL ||
+                ompi_comm_rank(src->comm) != src->gatherv.root) {
                 return;
             }
+            args = mca_coll_ucg_subargs_pool_get();
             rcounts = args->buf;
             disps = rcounts + size;
             for (i = 0; i < size; ++i) {
@@ -314,10 +319,11 @@ static void mca_coll_ucg_rcache_coll_req_args_init(mca_coll_ucg_args_t *dst,
             break;
         case MCA_COLL_UCG_TYPE_ALLGATHERV:
         case MCA_COLL_UCG_TYPE_IALLGATHERV:
-             if (src->allgatherv.rcounts == NULL ||
-                 src->allgatherv.disps == NULL) {
+            if (src->allgatherv.rcounts == NULL ||
+                src->allgatherv.disps == NULL) {
                 return;
             }
+            args = mca_coll_ucg_subargs_pool_get();
             rcounts = args->buf;
             disps = rcounts + size;
             for (i = 0; i < size; ++i) {
@@ -343,11 +349,15 @@ static void mca_coll_ucg_rcache_coll_req_args_uninit(mca_coll_ucg_args_t *args)
             break;
         case MCA_COLL_UCG_TYPE_SCATTERV:
         case MCA_COLL_UCG_TYPE_ISCATTERV:
-            buf = (void *)args->scatterv.scounts;
+            if (ompi_comm_rank(args->comm) == args->scatterv.root) {
+                buf = (void *)args->scatterv.scounts;
+            }
             break;
         case MCA_COLL_UCG_TYPE_GATHERV:
         case MCA_COLL_UCG_TYPE_IGATHERV:
-            buf = (void *)args->gatherv.rcounts;
+            if (ompi_comm_rank(args->comm) == args->gatherv.root) {
+                buf = (void *)args->gatherv.rcounts;
+            }
             break;
         case MCA_COLL_UCG_TYPE_ALLGATHERV:
         case MCA_COLL_UCG_TYPE_IALLGATHERV:
@@ -367,7 +377,7 @@ void mca_coll_ucg_rcache_mark_cacheable(mca_coll_ucg_req_t *coll_req,
                                         mca_coll_ucg_args_t *key)
 {
     OBJ_CONSTRUCT(&coll_req->list, opal_list_item_t);
-    mca_coll_ucg_rcache_coll_req_args_init(&coll_req->args, key);   // deep copy
+    mca_coll_ucg_rcache_coll_req_args_init(&coll_req->args, key);    // deep copy
     ucg_coll_ucg_rcache_ref(coll_req);
     coll_req->cacheable = true;
     return;
@@ -459,13 +469,16 @@ static bool mca_coll_ucg_rcache_is_same(const mca_coll_ucg_args_t *key1,
         case MCA_COLL_UCG_TYPE_ISCATTERV: {
             const mca_coll_scatterv_args_t *args1 = &key1->scatterv;
             const mca_coll_scatterv_args_t *args2 = &key2->scatterv;
-            is_same = args1->sbuf == args2->sbuf &&
-                      args1->sdtype == args2->sdtype &&
-                      args1->rbuf == args2->rbuf &&
+            is_same = args1->rbuf == args2->rbuf &&
                       args1->rcount == args2->rcount &&
                       args1->rdtype == args2->rdtype &&
                       args1->root == args2->root;
+            if (ompi_comm_rank(key1->comm) != args1->root) { // Non-root processes don't compare send parms
+                break;
+            }
             is_same = is_same &&
+                      args1->sbuf == args2->sbuf &&
+                      args1->sdtype == args2->sdtype &&
                       mca_coll_ucg_rcache_compare(comm_size, args1->scounts, args2->scounts) &&
                       mca_coll_ucg_rcache_compare(comm_size, args1->disps, args2->disps);
             break;
@@ -477,10 +490,13 @@ static bool mca_coll_ucg_rcache_is_same(const mca_coll_ucg_args_t *key1,
             is_same = args1->sbuf == args2->sbuf &&
                       args1->scount == args2->scount &&
                       args1->sdtype == args2->sdtype &&
+                      args1->root == args2->root;
+            if (ompi_comm_rank(key1->comm) != args1->root) { // Non-root processes don't compare recv parms
+                break;
+            }
+            is_same = is_same &&
                       args1->rbuf == args2->rbuf &&
                       args1->rdtype == args2->rdtype &&
-                      args1->root == args2->root;
-            is_same = is_same &&
                       mca_coll_ucg_rcache_compare(comm_size, args1->rcounts, args2->rcounts) &&
                       mca_coll_ucg_rcache_compare(comm_size, args1->disps, args2->disps);
             break;
@@ -577,7 +593,7 @@ int mca_coll_ucg_request_common_init(mca_coll_ucg_req_t *coll_req,
     ucg_request_info_t *info = &coll_req->info;
     info->field_mask = 0;
     if (nb || persistent) {
-        // For those case, the request is not done in the current call stack.
+        //For those case, the request is not done in the current call stack.
         info->field_mask |= UCG_REQUEST_INFO_FIELD_CB;
         info->complete_cb.cb = mca_coll_ucg_request_complete;
         info->complete_cb.arg = coll_req;
@@ -622,7 +638,7 @@ int mca_coll_ucg_request_execute(mca_coll_ucg_req_t *coll_req)
 
     int count = 0;
     while (UCG_INPROGRESS == (status = ucg_request_test(ucg_req))) {
-        // TODO: test wether opal_progress() can be removed
+        //TODO: test wether opal_progress() can be removed
         if (++count % 1000 == 0) {
             opal_progress();
         }
