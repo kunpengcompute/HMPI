@@ -202,6 +202,10 @@ typedef struct mca_coll_ucg_args {
         mca_coll_gatherv_args_t gatherv;
         mca_coll_allgatherv_args_t allgatherv;
     };
+    const int32_t *scounts;
+    const int32_t *sdispls;
+    const int32_t *rcounts;
+    const int32_t *rdispls;
 } mca_coll_ucg_args_t;
 
 typedef struct mca_coll_ucg_req {

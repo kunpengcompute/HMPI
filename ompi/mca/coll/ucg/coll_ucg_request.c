@@ -282,6 +282,10 @@ static void mca_coll_ucg_rcache_coll_req_args_init(mca_coll_ucg_args_t *dst,
             dst->alltoallv.sdispls = sdispls;
             dst->alltoallv.rcounts = rcounts;
             dst->alltoallv.rdispls = rdispls;
+            dst->scounts = src->alltoallv.scounts;
+            dst->sdispls = src->alltoallv.sdispls;
+            dst->rcounts = src->alltoallv.rcounts;
+            dst->rdispls = src->alltoallv.rdispls;
             break;
         case MCA_COLL_UCG_TYPE_SCATTERV:
         case MCA_COLL_UCG_TYPE_ISCATTERV:
@@ -299,6 +303,8 @@ static void mca_coll_ucg_rcache_coll_req_args_init(mca_coll_ucg_args_t *dst,
             }
             dst->scatterv.scounts = scounts;
             dst->scatterv.disps = disps;
+            dst->scounts = src->scatterv.scounts;
+            dst->sdispls = src->scatterv.disps;
             break;
         case MCA_COLL_UCG_TYPE_GATHERV:
         case MCA_COLL_UCG_TYPE_IGATHERV:
@@ -316,6 +322,8 @@ static void mca_coll_ucg_rcache_coll_req_args_init(mca_coll_ucg_args_t *dst,
             }
             dst->gatherv.rcounts = rcounts;
             dst->gatherv.disps = disps;
+            dst->rcounts = src->gatherv.rcounts;
+            dst->rdispls = src->gatherv.disps;
             break;
         case MCA_COLL_UCG_TYPE_ALLGATHERV:
         case MCA_COLL_UCG_TYPE_IALLGATHERV:
@@ -332,6 +340,8 @@ static void mca_coll_ucg_rcache_coll_req_args_init(mca_coll_ucg_args_t *dst,
             }
             dst->allgatherv.rcounts = rcounts;
             dst->allgatherv.disps = disps;
+            dst->rcounts = src->allgatherv.rcounts;
+            dst->rdispls = src->allgatherv.disps;
             break;
         default:
             break;
@@ -394,12 +404,12 @@ int mca_coll_ucg_rcache_add(mca_coll_ucg_req_t *coll_req, mca_coll_ucg_args_t *k
     return OMPI_SUCCESS;
 }
 
-static bool mca_coll_ucg_rcache_compare(int size, const int *array1, const int *array2)
+static bool mca_coll_ucg_rcache_compare(int size, const int *array1, const int *array2, const int32_t *src)
 {
     if (array1 == NULL || array2 == NULL) {
         return true;
     }
-    if (array1 != array2) {
+    if (array1 != src) {
         return false;
     }
     for (int i = 0; i < size; ++i) {
@@ -459,10 +469,10 @@ static bool mca_coll_ucg_rcache_is_same(const mca_coll_ucg_args_t *key1,
                       args1->rbuf == args2->rbuf &&
                       args1->rdtype == args2->rdtype;
             is_same = is_same &&
-                      mca_coll_ucg_rcache_compare(comm_size, args1->scounts, args2->scounts) &&
-                      mca_coll_ucg_rcache_compare(comm_size, args1->sdispls, args2->sdispls) &&
-                      mca_coll_ucg_rcache_compare(comm_size, args1->rcounts, args2->rcounts) &&
-                      mca_coll_ucg_rcache_compare(comm_size, args1->rdispls, args2->rdispls);
+                      mca_coll_ucg_rcache_compare(comm_size, args1->scounts, args2->scounts, key2->scounts) &&
+                      mca_coll_ucg_rcache_compare(comm_size, args1->sdispls, args2->sdispls, key2->sdispls) &&
+                      mca_coll_ucg_rcache_compare(comm_size, args1->rcounts, args2->rcounts, key2->rcounts) &&
+                      mca_coll_ucg_rcache_compare(comm_size, args1->rdispls, args2->rdispls, key2->rdispls);
             break;
         }
         case MCA_COLL_UCG_TYPE_SCATTERV:
@@ -479,8 +489,8 @@ static bool mca_coll_ucg_rcache_is_same(const mca_coll_ucg_args_t *key1,
             is_same = is_same &&
                       args1->sbuf == args2->sbuf &&
                       args1->sdtype == args2->sdtype &&
-                      mca_coll_ucg_rcache_compare(comm_size, args1->scounts, args2->scounts) &&
-                      mca_coll_ucg_rcache_compare(comm_size, args1->disps, args2->disps);
+                      mca_coll_ucg_rcache_compare(comm_size, args1->scounts, args2->scounts, key2->scounts) &&
+                      mca_coll_ucg_rcache_compare(comm_size, args1->disps, args2->disps, key2->sdispls);
             break;
         }
         case MCA_COLL_UCG_TYPE_GATHERV:
@@ -497,8 +507,8 @@ static bool mca_coll_ucg_rcache_is_same(const mca_coll_ucg_args_t *key1,
             is_same = is_same &&
                       args1->rbuf == args2->rbuf &&
                       args1->rdtype == args2->rdtype &&
-                      mca_coll_ucg_rcache_compare(comm_size, args1->rcounts, args2->rcounts) &&
-                      mca_coll_ucg_rcache_compare(comm_size, args1->disps, args2->disps);
+                      mca_coll_ucg_rcache_compare(comm_size, args1->rcounts, args2->rcounts, key2->rcounts) &&
+                      mca_coll_ucg_rcache_compare(comm_size, args1->disps, args2->disps, key2->rdispls);
             break;
         }
         case MCA_COLL_UCG_TYPE_ALLGATHERV:
@@ -511,8 +521,8 @@ static bool mca_coll_ucg_rcache_is_same(const mca_coll_ucg_args_t *key1,
                       args1->rbuf == args2->rbuf &&
                       args1->rdtype == args2->rdtype;
             is_same = is_same &&
-                      mca_coll_ucg_rcache_compare(comm_size, args1->rcounts, args2->rcounts) &&
-                      mca_coll_ucg_rcache_compare(comm_size, args1->disps, args2->disps);
+                      mca_coll_ucg_rcache_compare(comm_size, args1->rcounts, args2->rcounts, key2->rcounts) &&
+                      mca_coll_ucg_rcache_compare(comm_size, args1->disps, args2->disps, key2->rdispls);
             break;
         }
         default:
