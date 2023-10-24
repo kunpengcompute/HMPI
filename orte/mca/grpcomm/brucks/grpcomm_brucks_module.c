@@ -127,7 +127,7 @@ static int brucks_allgather_send_dist(orte_grpcomm_coll_t *coll, orte_process_na
     if (peer_in_one_coll == peer->vpid) {
         /* the peer process has been sent, so update to next coll */
         ++coll->sig->coll_id;
-        peer_in_one_coll = peer->vpid;
+        peer_in_one_coll = ORTE_VPID_INVALID;
     } else {
         /* record that the peer process has been sent */
         peer_in_one_coll = peer->vpid;
