@@ -127,7 +127,7 @@ static int brucks_allgather_send_dist(orte_grpcomm_coll_t *coll, orte_process_na
     if (peer_in_one_coll == peer->vpid) {
         /* the peer process has been sent, so update to next coll */
         ++coll->sig->coll_id;
-        peer_in_one_coll == peer->vpid;
+        peer_in_one_coll = peer->vpid;
     } else {
         /* record that the peer process has been sent */
         peer_in_one_coll = peer->vpid;
@@ -228,7 +228,11 @@ static void brucks_allgather_process_data(orte_grpcomm_coll_t *coll, uint32_t di
     orte_vpid_t nv;
     int rc;
 
-    last_round = (1 << log2ndmns) < coll->dmns > (log2ndmns + 1) : log2ndmns;
+    /* NTH: calculate in which round we should send the final data. this is the first
+     * round in which we have data from at least (coll->ndmns - (1 << log2ndmns))
+     * daemons. alternatively we could just send when distance reaches log2ndmns but
+     * that could end up sending more data than needed */
+    last_round = (uint32_t) ceil (log2 ((double) (coll->ndmns - (1 << log2ndmns))));
 
     peer.jobid = ORTE_PROC_MY_NAME->jobid;
 
