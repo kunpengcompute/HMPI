@@ -325,5 +325,6 @@ int orte_dt_copy_sig(orte_grpcomm_signature_t **dest, orte_grpcomm_signature_t *
         return ORTE_ERR_OUT_OF_RESOURCE;
     }
     memcpy((*dest)->signature, src->signature, src->sz * sizeof(orte_process_name_t));
+    (*dest)->coll_id = src->coll_id;
     return ORTE_SUCCESS;
 }

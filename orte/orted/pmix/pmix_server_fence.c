@@ -74,6 +74,7 @@ static void pmix_server_release(int status, opal_buffer_t *buf, void *cbdata)
     OBJ_RELEASE(cd);
 }
 
+static __thread int coll_id = 0;
 /* this function is called when all the local participants have
  * called fence - thus, the collective is already locally
  * complete at this point. We therefore just need to create the
@@ -98,6 +99,7 @@ int pmix_server_fencenb_fn(opal_list_t *procs, opal_list_t *info,
         cd->sig->sz = opal_list_get_size(procs);
         cd->sig->signature = (orte_process_name_t*)malloc(cd->sig->sz * sizeof(orte_process_name_t));
         memset(cd->sig->signature, 0, cd->sig->sz * sizeof(orte_process_name_t));
+        cd->sig->coll_id = coll_id++;
         i=0;
         OPAL_LIST_FOREACH(nm, procs, opal_namelist_t) {
             cd->sig->signature[i].jobid = nm->name.jobid;

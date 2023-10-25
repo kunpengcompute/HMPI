@@ -129,9 +129,21 @@ static int allgather(orte_grpcomm_coll_t *coll,
     return ORTE_SUCCESS;
 }
 
+/* In one collection operation, one peer process should be sent only once */
+static __thread unsigned long peer_in_one_coll = ORTE_VPID_INVALID;
+
 static int rcd_allgather_send_dist(orte_grpcomm_coll_t *coll, orte_process_name_t *peer, uint32_t distance) {
     opal_buffer_t *send_buf;
     int rc;
+
+    if (peer_in_one_coll == peer->vpid) {
+        /* the peer process has been sent, so update to next coll */
+        ++coll->sig->coll_id;
+        peer_in_one_coll = ORTE_VPID_INVALID;
+    } else {
+        /* record that the peer process has been sent */
+        peer_in_one_coll = peer->vpid;
+    }
 
     send_buf = OBJ_NEW(opal_buffer_t);
 
