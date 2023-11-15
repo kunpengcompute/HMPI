@@ -74,7 +74,7 @@ mca_coll_ucg_component_t mca_coll_ucg_component = {
     /* MCA parameter */
     .priority = 90,             /* priority */
     .verbose = 2,               /* verbose level */
-    .max_rcache_size = 1024,
+    .max_rcache_size = 10,
     .disable_coll = NULL,
     .topology = NULL,
 
