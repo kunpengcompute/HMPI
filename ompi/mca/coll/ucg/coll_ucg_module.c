@@ -16,6 +16,7 @@
 #include "ompi/mca/coll/base/coll_base_functions.h"
 #include "ompi/mca/pml/pml.h"
 #include "ompi/mca/pml/ucx/pml_ucx.h"
+#include "opal/util/argv.h"
 
 /* Ensure coll ucg can be dlopened if global var "ompi_pml_ucx" is not existed */
 mca_pml_ucx_module_t ompi_pml_ucx __attribute__((weak));
@@ -492,7 +493,7 @@ static void mca_coll_ucg_module_construct(mca_coll_ucg_module_t *module)
         MCA_COLL_UCG_SET_CACHE_HANDLER(bcast);
         MCA_COLL_UCG_SET_CACHE_HANDLER(alltoallv);
         MCA_COLL_UCG_SET_CACHE_HANDLER(scatterv);
-        // MCA_COLL_UCG_SET_CACHE_HANDLER(gatherv);
+        MCA_COLL_UCG_SET_CACHE_HANDLER(gatherv);
         MCA_COLL_UCG_SET_CACHE_HANDLER(allgatherv);
 
         MCA_COLL_UCG_SET_CACHE_HANDLER(iallreduce);
@@ -500,7 +501,7 @@ static void mca_coll_ucg_module_construct(mca_coll_ucg_module_t *module)
         MCA_COLL_UCG_SET_CACHE_HANDLER(ibcast);
         MCA_COLL_UCG_SET_CACHE_HANDLER(ialltoallv);
         MCA_COLL_UCG_SET_CACHE_HANDLER(iscatterv);
-        // MCA_COLL_UCG_SET_CACHE_HANDLER(igatherv);
+        MCA_COLL_UCG_SET_CACHE_HANDLER(igatherv);
         MCA_COLL_UCG_SET_CACHE_HANDLER(iallgatherv);
     } else {
         MCA_COLL_UCG_SET_HANDLER(allreduce);
@@ -508,7 +509,7 @@ static void mca_coll_ucg_module_construct(mca_coll_ucg_module_t *module)
         MCA_COLL_UCG_SET_HANDLER(bcast);
         MCA_COLL_UCG_SET_HANDLER(alltoallv);
         MCA_COLL_UCG_SET_HANDLER(scatterv);
-        // MCA_COLL_UCG_SET_HANDLER(gatherv);
+        MCA_COLL_UCG_SET_HANDLER(gatherv);
         MCA_COLL_UCG_SET_HANDLER(allgatherv);
 
         MCA_COLL_UCG_SET_HANDLER(iallreduce);
@@ -516,7 +517,7 @@ static void mca_coll_ucg_module_construct(mca_coll_ucg_module_t *module)
         MCA_COLL_UCG_SET_HANDLER(ibcast);
         MCA_COLL_UCG_SET_HANDLER(ialltoallv);
         MCA_COLL_UCG_SET_HANDLER(iscatterv);
-        // MCA_COLL_UCG_SET_HANDLER(igatherv);
+        MCA_COLL_UCG_SET_HANDLER(igatherv);
         MCA_COLL_UCG_SET_HANDLER(iallgatherv);
     }
 
@@ -525,7 +526,7 @@ static void mca_coll_ucg_module_construct(mca_coll_ucg_module_t *module)
     MCA_COLL_UCG_SET_HANDLER(bcast_init);
     MCA_COLL_UCG_SET_HANDLER(alltoallv_init);
     MCA_COLL_UCG_SET_HANDLER(scatterv_init);
-    // MCA_COLL_UCG_SET_HANDLER(gatherv_init);
+    MCA_COLL_UCG_SET_HANDLER(gatherv_init);
     MCA_COLL_UCG_SET_HANDLER(allgatherv_init);
     return;
 }

@@ -618,6 +618,17 @@ int ompi_mpi_init(int argc, char **argv, int requested, int *provided,
         error = "mca_pml_base_open() failed";
         goto error;
     }
+    /* Select which MPI components to use */
+
+    /* Move the code for selecting pml to the front of creating coll
+     * so that the UCG can reuse worker created at the OMPI layer.*/
+    if (OMPI_SUCCESS !=
+        (ret = mca_pml_base_select(OPAL_ENABLE_PROGRESS_THREADS,
+                                   ompi_mpi_thread_multiple))) {
+        error = "mca_pml_base_select() failed";
+        goto error;
+    }
+
     if (OMPI_SUCCESS != (ret = mca_base_framework_open(&ompi_coll_base_framework, 0))) {
         error = "mca_coll_base_open() failed";
         goto error;
@@ -641,15 +652,6 @@ int ompi_mpi_init(int argc, char **argv, int requested, int *provided,
        relevant functions (e.g., MPI_FILE_*, MPI_CART_*, MPI_GRAPH_*),
        so they are not opened here. */
 
-    /* Select which MPI components to use */
-
-    if (OMPI_SUCCESS !=
-        (ret = mca_pml_base_select(OPAL_ENABLE_PROGRESS_THREADS,
-                                   ompi_mpi_thread_multiple))) {
-        error = "mca_pml_base_select() failed";
-        goto error;
-    }
-
     OMPI_TIMING_IMPORT_OPAL("orte_init");
     OMPI_TIMING_NEXT("rte_init-commit");
 
@@ -660,7 +662,7 @@ int ompi_mpi_init(int argc, char **argv, int requested, int *provided,
     opal_pmix.commit();
     OMPI_TIMING_NEXT("commit");
 #if (OPAL_ENABLE_TIMING)
-    if (OMPI_TIMING_ENABLED && !opal_pmix_base_async_modex && 
+    if (OMPI_TIMING_ENABLED && !opal_pmix_base_async_modex &&
             opal_pmix_collect_all_data) {
         if (OMPI_SUCCESS != (ret = opal_pmix.fence(NULL, 0))) {
             error = "timing: pmix-barrier-1 failed";
