@@ -1,6 +1,7 @@
 /*
  * Copyright (C) Mellanox Technologies Ltd. 2001-2011.  ALL RIGHTS RESERVED.
  * $COPYRIGHT$
+ * Copyright (c) Huawei Technologies Co., Ltd. 2024. All rights reserved.
  *
  * Additional copyrights may follow
  *
@@ -25,6 +26,7 @@
 
 #define PML_UCX_ASSERT  MCA_COMMON_UCX_ASSERT
 #define PML_UCX_ERROR   MCA_COMMON_UCX_ERROR
+#define PML_UCX_WARN    MCA_COMMON_UCX_WARN
 #define PML_UCX_VERBOSE MCA_COMMON_UCX_VERBOSE
 
 
