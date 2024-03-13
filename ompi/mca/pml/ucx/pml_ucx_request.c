@@ -203,6 +203,9 @@ void mca_pml_ucx_request_timeout_warn(uint64_t tag)
     opal_process_name_t proc_name = {.vpid = rank, .jobid = OMPI_PROC_MY_NAME->jobid};
     OPAL_MODEX_RECV_VALUE_OPTIONAL(rc, OPAL_PMIX_HOSTNAME, &proc_name,
                                    (char**)&(peer_hostname), OPAL_STRING);
+    if (rc != OPAL_SUCCESS) {
+        peer_hostname = "unknown";
+    }
     PML_UCX_WARN("UCP request timeout! request tag 0x%lX local proc: %u peer proc: %d peer hostname: %s\n",
                   tag, OMPI_PROC_MY_NAME->vpid, rank, peer_hostname);
 }
