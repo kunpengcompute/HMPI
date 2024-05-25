@@ -5,7 +5,7 @@
  *                         reserved.
  * Copyright (c) 2018      Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
- * Copyright (c) 2022      Huawei Technologies Co., Ltd. All rights reserved.
+ * Copyright (c) 2022-2024 Huawei Technologies Co., Ltd. All rights reserved.
  *
  * $COPYRIGHT$
  *
@@ -219,7 +219,8 @@ int mca_pml_ucx_open(void)
                                UCP_PARAM_FIELD_REQUEST_CLEANUP |
                                UCP_PARAM_FIELD_TAG_SENDER_MASK |
                                UCP_PARAM_FIELD_MT_WORKERS_SHARED |
-                               UCP_PARAM_FIELD_ESTIMATED_NUM_EPS;
+                               UCP_PARAM_FIELD_ESTIMATED_NUM_EPS |
+                               UCP_PARAM_FIELD_TIMEOUT_WARN;
     params.features          = UCP_FEATURE_TAG;
 #ifdef HAVE_UCG_API_UCG_H
     /* Adapt to UCG internal ucp requests. */
@@ -228,6 +229,7 @@ int mca_pml_ucx_open(void)
     params.request_size      = sizeof(ompi_request_t);
 #endif
     params.request_init      = mca_pml_ucx_request_init;
+    params.timeout_warn      = mca_pml_ucx_request_timeout_warn;
     params.request_cleanup   = mca_pml_ucx_request_cleanup;
     params.tag_sender_mask   = PML_UCX_SPECIFIC_SOURCE_MASK;
     params.mt_workers_shared = 0; /* we do not need mt support for context
@@ -423,8 +425,9 @@ static ucp_ep_h mca_pml_ucx_add_proc_common(ompi_proc_t *proc)
     status = ucp_ep_create(ompi_pml_ucx.ucp_worker, &ep_params, &ep);
     free(address);
     if (UCS_OK != status) {
-        PML_UCX_ERROR("ucp_ep_create(proc=%d) failed: %s",
+        PML_UCX_ERROR("ucp_ep_create(peer proc=%d peer hostname=%s) failed: %s",
                       proc->super.proc_name.vpid,
+                      proc->super.proc_hostname,
                       ucs_status_string(status));
         return NULL;
     }
