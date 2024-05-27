@@ -222,7 +222,10 @@ out:
     return UCG_OK;
 }
 
-static int mca_coll_ucg_put_local_proc_info(void)
+/*
+ * Call pmix_put for sending my own process infor to pmix server
+ */
+static int mca_coll_ucg_send_local_proc_info(void)
 {
     char rank_addr_identify[32] = {0};
     mca_coll_ucg_component_t *cm = &mca_coll_ucg_component;
@@ -233,13 +236,19 @@ static int mca_coll_ucg_put_local_proc_info(void)
     sprintf(rank_addr_identify, "%s.%s.%u.%u", mca_type_name, mca_component_name, jobid, vpid);
 
     int rc;
-    ucg_proc_info_t *proc = ucg_get_local_proc_info(cm->ucg_context);
+    ucg_proc_info_t *proc = ucg_get_allocated_local_proc_info(cm->ucg_context);
+    if (!proc) {
+        UCG_ERROR("Failed to get local proc info!");
+        return OMPI_ERR_OUT_OF_RESOURCE;
+    }
     mca_coll_ucg_set_local_location(&proc->location);
 
     uint32_t proc_size = *(uint32_t *)proc;
     UCG_DEBUG("key: %s value: %p (size: %d, location: %d,%d,%d)", rank_addr_identify, proc, proc_size,
         proc->location.subnet_id, proc->location.node_id, proc->location.socket_id);
+
     OPAL_MODEX_SEND_STRING(rc, OPAL_PMIX_GLOBAL, rank_addr_identify, proc, proc_size);
+    ucg_free_proc_info(proc);
     if (rc != OMPI_SUCCESS) {
         return rc;
     }
@@ -257,7 +266,7 @@ static int mca_coll_ucg_open(void)
         return rc;
     }
 
-    rc = mca_coll_ucg_put_local_proc_info();
+    rc = mca_coll_ucg_send_local_proc_info();
     if (rc != OMPI_SUCCESS) {
         return rc;
     }
