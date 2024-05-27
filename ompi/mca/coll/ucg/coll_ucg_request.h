@@ -202,6 +202,7 @@ typedef struct mca_coll_ucg_args {
         mca_coll_gatherv_args_t gatherv;
         mca_coll_allgatherv_args_t allgatherv;
     };
+    /* Stores pointers in the rcache, combine with deep copy content */
     const int32_t *scounts;
     const int32_t *sdispls;
     const int32_t *rcounts;

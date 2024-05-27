@@ -16,6 +16,7 @@
 #include "ompi/mca/coll/base/coll_base_functions.h"
 #include "ompi/mca/pml/pml.h"
 #include "ompi/mca/pml/ucx/pml_ucx.h"
+#include "opal/util/argv.h"
 
 /* Ensure coll ucg can be dlopened if global var "ompi_pml_ucx" is not existed */
 mca_pml_ucx_module_t ompi_pml_ucx __attribute__((weak));
