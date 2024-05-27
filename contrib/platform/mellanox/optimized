@@ -40,10 +40,10 @@ if [ "$mellanox_debug" == "yes" ]; then
     enable_debug=yes
     enable_memchecker=yes
     with_valgrind=yes
-    CXXFLAGS="-O0 -g"
-    CCASFLAGS="-O0 -g"
-    FCFLAGS="-O0 -g"
-    CFLAGS="-O0 -g"
+    CXXFLAGS="-O0 -g $CXXFLAGS"
+    CCASFLAGS="-O0 -g $CCASFLAGS"
+    FCFLAGS="-O0 -g $FCFLAGS"
+    CFLAGS="-O0 -g $CFLAGS"
 else
     enable_debug=no
     enable_mem_debug=no
@@ -53,8 +53,8 @@ else
     enable_heterogeneous=no
     enable_ft_thread=no
     with_mpi_param_check=yes
-    CXXFLAGS="-O3 -g"
-    CCASFLAGS="-O3 -g"
-    FCFLAGS="-O3 -g"
-    CFLAGS="-O3 -g"
+    CXXFLAGS="-O3 -g $CXXFLAGS"
+    CCASFLAGS="-O3 -g $CCASFLAGS"
+    FCFLAGS="-O3 -g $FCFLAGS"
+    CFLAGS="-O3 -g $CFLAGS"
 fi
