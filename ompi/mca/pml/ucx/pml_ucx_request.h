@@ -3,6 +3,7 @@
  * Copyright (c) 2016-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024 Huawei Technologies Co., Ltd. All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -145,6 +146,7 @@ void mca_pml_ucx_request_init(void *request);
 
 void mca_pml_ucx_request_cleanup(void *request);
 
+void mca_pml_ucx_request_timeout_warn(uint64_t tag);
 
 static inline void mca_pml_ucx_request_reset(ompi_request_t *req)
 {
