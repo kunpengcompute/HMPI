@@ -22,7 +22,7 @@ mca_pml_ucx_module_t ompi_pml_ucx __attribute__((weak));
 
 #define MCA_COLL_UCG_SET_HANDLER(_api) \
     if (mca_coll_ucg_is_api_enable(#_api)) { \
-         module->super.coll_ ## _api = mca_coll_ucg_ ## _api; \
+        module->super.coll_ ## _api = mca_coll_ucg_ ## _api; \
     }
 
 #define MCA_COLL_UCG_SET_CACHE_HANDLER(_api) \
@@ -117,97 +117,28 @@ out:
     return (rc == OMPI_SUCCESS) ? UCG_OK : UCG_ERR_NO_RESOURCE;
 }
 
-/**
- * @brief Parse the topology file and find the subnet ID corresponding to the rank
- *
- * Temporary solution, which does not consider the overhead of repeatedly
- * opening and traversing files. This solution will be changed later.
- */
-static ucg_status_t mca_coll_ucg_get_subnet_id(ucg_rank_t myrank, char *topology,
-                                               int32_t *subnet_id)
+static ucg_status_t mca_coll_ucg_get_proc_info(ucg_rank_t rank, ucg_proc_info_t **proc)
 {
-    if (topology == NULL) {
-        UCG_DEBUG("No topology file is specified");
-        return UCG_ERR_NOT_FOUND;
-    }
-
-    FILE *fp = fopen(topology, "r");
-    if (fp == NULL) {
-        UCG_DEBUG("Topology file %s doesn't seem to exist", topology);
-        return UCG_ERR_NOT_FOUND;
-    }
-
-    ucg_status_t status = UCG_OK;
-    char line[1024];
-    ucg_rank_t temp_rank;
-    int32_t temp_id;
-    while (!feof(fp)) {
-        fgets(line, sizeof(line) - 1, fp);
-        int rc = sscanf(line, "rank %d subnet_id %d", &temp_rank, &temp_id);
-        if (rc != 2) {
-            goto err;
-        } else if (temp_rank == myrank) {
-            *subnet_id = temp_id;
-            goto out;
-        }
-    }
-err:
-    status = UCG_ERR_INVALID_PARAM;
-    UCG_DEBUG("Failed to parse the topology file. Rank %d is not found", myrank);
-out:
-    fclose(fp);
-    return status;
-}
-
-static ucg_status_t mca_coll_ucg_get_location(ucg_rank_t rank, ucg_location_t *location)
-{
-    ompi_communicator_t* comm = &ompi_mpi_comm_world.comm;
-    if (location == NULL || rank >= ompi_comm_size(comm)) {
+    int comm_size = ompi_process_info.num_procs;
+    if (rank >= comm_size) {
         return UCG_ERR_INVALID_PARAM;
     }
 
+    char rank_addr_identify[32] = {0};
+    mca_coll_ucg_component_t *cm = &mca_coll_ucg_component;
+    const char *mca_type_name = cm->super.collm_version.mca_type_name;
+    const char *mca_component_name = cm->super.collm_version.mca_component_name;
+    uint32_t jobid = (uint32_t)ORTE_PROC_MY_NAME->jobid;
+    uint32_t vpid = rank;
+    sprintf(rank_addr_identify, "%s.%s.%u.%u", mca_type_name, mca_component_name, jobid, vpid);
+
     int rc;
-    ompi_proc_t *proc = ompi_comm_peer_lookup(comm, rank);
-
-    location->field_mask = 0;
-    // get subnet id
-    int32_t subnet_id = 0;
-    ucg_status_t status;
-    status = mca_coll_ucg_get_subnet_id(rank, mca_coll_ucg_component.topology,
-                                        &subnet_id);
-    if (status == UCG_OK) {
-        location->field_mask |= UCG_LOCATION_FIELD_SUBNET_ID;
-        location->subnet_id = subnet_id;
-    }
-
-    // get node id
-    uint32_t node_id = 0;
-    uint32_t *pnode_id = &node_id;
-    OPAL_MODEX_RECV_VALUE_OPTIONAL(rc, PMIX_NODEID,
-                                   &(proc->super.proc_name), &pnode_id, PMIX_UINT32);
+    uint32_t proc_size;
+    opal_process_name_t proc_name = {.vpid = rank, .jobid = OMPI_PROC_MY_NAME->jobid};
+    OPAL_MODEX_RECV_STRING(rc, rank_addr_identify, &proc_name, (void**)proc, &proc_size);
     if (rc != OPAL_SUCCESS) {
-        goto out;
+        return UCG_ERR_NOT_FOUND;
     }
-    location->field_mask |= UCG_LOCATION_FIELD_NODE_ID;
-    location->node_id = (int32_t)node_id;
-
-    // get socket id
-    char *locality = NULL;
-    OPAL_MODEX_RECV_VALUE_OPTIONAL(rc, PMIX_LOCALITY_STRING,
-                                   &(proc->super.proc_name), &locality, PMIX_STRING);
-    if (rc != OPAL_SUCCESS || locality == NULL) {
-        goto out;
-    }
-    char *socket = strstr(locality, "SK");
-    if (socket == NULL) {
-        goto out_free_locality;
-    }
-    location->field_mask |= UCG_LOCATION_FIELD_SOCKET_ID;
-    location->socket_id = atoi(socket + 2);
-
-out_free_locality:
-    free(locality);
-out:
     return UCG_OK;
 }
 
@@ -219,14 +150,11 @@ static int mca_coll_ucg_get_world_rank(void *arg, int rank)
 }
 
 /* mca_coll_ucg_fill_oob_group is used in ucg_init */
-static void mca_coll_ucg_fill_oob_group(ucg_oob_group_t *oob_group,
-                                        ompi_communicator_t *comm)
+static void mca_coll_ucg_fill_oob_group(ucg_oob_group_t *oob_group)
 {
-    oob_group->allgather = mca_coll_ucg_oob_allgather;
-    oob_group->myrank = (ucg_rank_t)ompi_comm_rank(comm);
-    oob_group->size = (uint32_t)ompi_comm_size(comm);
-    oob_group->num_local_procs = opal_process_info.num_local_peers + 1;
-    oob_group->group = (void *)comm;
+    oob_group->myrank = ompi_process_info.my_name.vpid;
+    oob_group->size = ompi_process_info.num_procs;
+    oob_group->num_local_procs = ompi_process_info.num_local_peers + 1;
     return;
 }
 
@@ -279,9 +207,6 @@ static void *mca_coll_ucg_get_ucp_ep(void *arg, void *oob_group, int rank)
 
 static void *mca_coll_ucg_get_ucp_worker(void *arg)
 {
-    if (ompi_pml_ucx.ucp_worker == NULL) {
-        UCG_ERROR("ucp worker is null");
-    }
     return (void*)ompi_pml_ucx.ucp_worker;
 }
 
@@ -292,14 +217,10 @@ static int mca_coll_ucg_init(void)
     ucg_config_h config;
 
     ucg_global_params_t global_params = {
-        .oob_resource.get_ucp_ep = NULL,
-        .oob_resource.get_ucp_worker = NULL
+        .field_mask = UCG_GLOBAL_PARAMS_FIELD_OOB_RESOURCE,
+        .oob_resource.get_ucp_ep = mca_coll_ucg_get_ucp_ep,
+        .oob_resource.get_ucp_worker = mca_coll_ucg_get_ucp_worker
     };
-    if (strcmp(mca_pml_base_selected_component.pmlm_version.mca_component_name , "ucx") == 0) {
-        global_params.field_mask = UCG_GLOBAL_PARAMS_FIELD_OOB_RESOURCE;
-        global_params.oob_resource.get_ucp_ep = mca_coll_ucg_get_ucp_ep;
-        global_params.oob_resource.get_ucp_worker = mca_coll_ucg_get_ucp_worker;
-    }
     status = ucg_global_init(&global_params);
     if (status != UCG_OK) {
         UCG_ERROR("UCG global init failed: %s", ucg_status_string(status));
@@ -315,10 +236,10 @@ static int mca_coll_ucg_init(void)
 
     ucg_params_t params;
     params.field_mask = UCG_PARAMS_FIELD_OOB_GROUP |
-                        UCG_PARAMS_FIELD_LOCATION_CB |
-                        UCG_PARAMS_FIELD_THREAD_MODE;
-    mca_coll_ucg_fill_oob_group(&params.oob_group, &ompi_mpi_comm_world.comm);
-    params.get_location = mca_coll_ucg_get_location;
+                        UCG_PARAMS_FIELD_THREAD_MODE |
+                        UCG_PARAMS_FIELD_PROC_INFO_CB;
+    mca_coll_ucg_fill_oob_group(&params.oob_group);
+    params.get_proc_info = mca_coll_ucg_get_proc_info;
     params.thread_mode = ompi_mpi_thread_multiple ? UCG_THREAD_MODE_MULTI : UCG_THREAD_MODE_SINGLE;
     status = ucg_init(&params, config, &cm->ucg_context);
     ucg_config_release(config);
@@ -339,20 +260,14 @@ static void mca_coll_ucg_cleanup(void)
     return;
 }
 
-static int mca_coll_ucg_init_once(ompi_communicator_t *comm)
+int mca_coll_ucg_init_once()
 {
     mca_coll_ucg_component_t *cm = &mca_coll_ucg_component;
-    int rc;
-
     if (cm->initialized) {
         return OMPI_SUCCESS;
     }
 
-    if (comm != &ompi_mpi_comm_world.comm) {
-        UCG_ERROR("The comm on first call must be mpi_comm_world");
-        return OMPI_ERROR;
-    }
-
+    int rc;
     rc = mca_coll_ucg_conv_pool_init();
     if (rc != OMPI_SUCCESS) {
         goto err;
@@ -363,7 +278,7 @@ static int mca_coll_ucg_init_once(ompi_communicator_t *comm)
         goto err_cleanup_conv_pool;
     }
 
-    uint32_t size = (uint32_t)ompi_comm_size(comm);
+    uint32_t size = ompi_process_info.num_procs;
     rc = mca_coll_ucg_subargs_pool_init(size);
     if (rc != OMPI_SUCCESS) {
         UCG_ERROR("Failed to init subargs mpool, %d", rc);
@@ -393,17 +308,11 @@ static int mca_coll_ucg_init_once(ompi_communicator_t *comm)
         goto err_free_blacklist;
     }
 
-    rc = mca_coll_ucg_type_init();
-    if (rc != OMPI_SUCCESS) {
-        goto err_cleanup_ucg;
-    }
     /* everything is ready, register progress function. */
     opal_progress_register(mca_coll_ucg_progress);
     cm->initialized = true;
     return OMPI_SUCCESS;
 
-err_cleanup_ucg:
-    mca_coll_ucg_cleanup();
 err_free_blacklist:
     if (cm->blacklist != NULL) {
         opal_argv_free(cm->blacklist);
@@ -541,6 +450,12 @@ static int mca_coll_ucg_module_enable(mca_coll_base_module_t *module,
         return rc;
     }
 
+    rc = mca_coll_ucg_type_init();
+    if (rc != OMPI_SUCCESS) {
+        UCG_ERROR("Failed to init ucg type, %d", rc);
+        return rc;
+    }
+
     rc = mca_coll_ucg_create_group(ucg_module, comm);
     if (rc != OMPI_SUCCESS) {
         UCG_ERROR("Failed to create ucg group, %d", rc);
@@ -650,13 +565,6 @@ mca_coll_base_module_t *mca_coll_ucg_comm_query(ompi_communicator_t *comm, int *
     mca_coll_ucg_module_t *ucg_module;
 
     if ((OMPI_COMM_IS_INTER(comm)) || (ompi_comm_size(comm) < 2)) {
-        return NULL;
-    }
-
-    /* mca_coll_ucg_init_once() need to use the ompi_mpi_comm_world which is valid
-       until now, so put mca_coll_ucg_init_once() here. It will only be executed
-       once */
-    if (OMPI_SUCCESS != mca_coll_ucg_init_once(comm)) {
         return NULL;
     }
 

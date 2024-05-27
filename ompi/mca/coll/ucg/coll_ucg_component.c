@@ -123,11 +123,145 @@ static int mca_coll_ucg_register(void)
     return OMPI_SUCCESS;
 }
 
+/**
+ * @brief Parse the topology file and find the subnet ID corresponding to the rank
+ *
+ * Temporary solution, which does not consider the overhead of repeatedly
+ * opening and traversing files. This solution will be changed later.
+ */
+static ucg_status_t mca_coll_ucg_get_subnet_id(ucg_rank_t myrank, char *topology,
+                                               int32_t *subnet_id)
+{
+    if (topology == NULL) {
+        UCG_DEBUG("No topology file is specified");
+        return UCG_ERR_NOT_FOUND;
+    }
+
+    FILE *fp = fopen(topology, "r");
+    if (fp == NULL) {
+        UCG_DEBUG("Topology file %s doesn't seem to exist", topology);
+        return UCG_ERR_NOT_FOUND;
+    }
+
+    ucg_status_t status = UCG_OK;
+    char line[1024];
+    ucg_rank_t temp_rank;
+    int32_t temp_id;
+    while (!feof(fp)) {
+        fgets(line, sizeof(line) - 1, fp);
+        int rc = sscanf(line, "rank %d subnet_id %d", &temp_rank, &temp_id);
+        if (rc != 2) {
+            goto err;
+        } else if (temp_rank == myrank) {
+            *subnet_id = temp_id;
+            goto out;
+        }
+    }
+err:
+    status = UCG_ERR_INVALID_PARAM;
+    UCG_DEBUG("Failed to parse the topology file. Rank %d is not found", myrank);
+out:
+    fclose(fp);
+    return status;
+}
+
+static ucg_status_t mca_coll_ucg_set_local_location(ucg_location_t *location)
+{
+    if (location == NULL) {
+        return UCG_ERR_INVALID_PARAM;
+    }
+
+    int rc;
+    opal_process_name_t proc_name = {
+        .jobid = OMPI_PROC_MY_NAME->jobid,
+        .vpid = OMPI_PROC_MY_NAME->vpid,
+    };
+    location->field_mask = 0;
+    location->subnet_id = -1;
+    location->node_id = -1;
+    location->socket_id = -1;
+
+    // get subnet id
+    int32_t subnet_id = 0;
+    ucg_status_t status;
+    status = mca_coll_ucg_get_subnet_id(OMPI_PROC_MY_NAME->vpid,
+                                        mca_coll_ucg_component.topology,
+                                        &subnet_id);
+    if (status == UCG_OK) {
+        location->field_mask |= UCG_LOCATION_FIELD_SUBNET_ID;
+        location->subnet_id = subnet_id;
+    }
+
+    // get node id
+    uint32_t node_id = 0;
+    uint32_t *pnode_id = &node_id;
+    OPAL_MODEX_RECV_VALUE_OPTIONAL(rc, PMIX_NODEID, &proc_name, &pnode_id, PMIX_UINT32);
+    if (rc != OPAL_SUCCESS) {
+        goto out;
+    }
+    location->field_mask |= UCG_LOCATION_FIELD_NODE_ID;
+    location->node_id = (int32_t)node_id;
+
+    // get socket id
+    char *locality = NULL;
+    OPAL_MODEX_RECV_VALUE_OPTIONAL(rc, PMIX_LOCALITY_STRING,
+                                   &proc_name, &locality, PMIX_STRING);
+    if (rc != OPAL_SUCCESS || locality == NULL) {
+        goto out;
+    }
+    char *socket = strstr(locality, "SK");
+    if (socket == NULL) {
+        goto out_free_locality;
+    }
+    location->field_mask |= UCG_LOCATION_FIELD_SOCKET_ID;
+    location->socket_id = atoi(socket + 2);
+
+out_free_locality:
+    free(locality);
+out:
+    return UCG_OK;
+}
+
+static int mca_coll_ucg_put_local_proc_info(void)
+{
+    char rank_addr_identify[32] = {0};
+    mca_coll_ucg_component_t *cm = &mca_coll_ucg_component;
+    const char *mca_type_name = cm->super.collm_version.mca_type_name;
+    const char *mca_component_name = cm->super.collm_version.mca_component_name;
+    uint32_t jobid = (uint32_t)ORTE_PROC_MY_NAME->jobid;
+    uint32_t vpid = (uint32_t)ORTE_PROC_MY_NAME->vpid;
+    sprintf(rank_addr_identify, "%s.%s.%u.%u", mca_type_name, mca_component_name, jobid, vpid);
+
+    int rc;
+    ucg_proc_info_t *proc = ucg_get_local_proc_info(cm->ucg_context);
+    mca_coll_ucg_set_local_location(&proc->location);
+
+    uint32_t proc_size = *(uint32_t *)proc;
+    UCG_DEBUG("key: %s value: %p (size: %d, location: %d,%d,%d)", rank_addr_identify, proc, proc_size,
+        proc->location.subnet_id, proc->location.node_id, proc->location.socket_id);
+    OPAL_MODEX_SEND_STRING(rc, OPAL_PMIX_GLOBAL, rank_addr_identify, proc, proc_size);
+    if (rc != OMPI_SUCCESS) {
+        return rc;
+    }
+    return OMPI_SUCCESS;
+}
+
 static int mca_coll_ucg_open(void)
 {
     mca_coll_ucg_component_t *cm = &mca_coll_ucg_component;
     mca_coll_ucg_output = opal_output_open(NULL);
     opal_output_set_verbosity(mca_coll_ucg_output, cm->verbose);
+
+    int rc = mca_coll_ucg_init_once();
+    if (rc != OMPI_SUCCESS) {
+        return rc;
+    }
+
+    rc = mca_coll_ucg_put_local_proc_info();
+    if (rc != OMPI_SUCCESS) {
+        return rc;
+    }
+
     return OMPI_SUCCESS;
 }
 

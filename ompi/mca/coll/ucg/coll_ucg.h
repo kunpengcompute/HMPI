@@ -128,6 +128,8 @@ OBJ_CLASS_DECLARATION(mca_coll_ucg_module_t);
 
 int mca_coll_ucg_init_query(bool enable_progress_threads, bool enable_mpi_threads);
 mca_coll_base_module_t *mca_coll_ucg_comm_query(ompi_communicator_t *comm, int *priority);
+
+int mca_coll_ucg_init_once(void);
 void mca_coll_ucg_cleanup_once(void);
 
 /* allreduce */

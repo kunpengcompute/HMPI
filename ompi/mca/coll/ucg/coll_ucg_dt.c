@@ -251,7 +251,7 @@ static int mca_coll_ucg_type_create_user_dt(ompi_datatype_t *ompi_dt, ucg_dt_h *
     params.extent = (uint32_t)extent;
     params.true_lb = (int32_t)true_lb;
     params.true_extent = (uint32_t)true_extent;
-    if (size != extent) {
+    if (size != (size_t)extent) {
         params.field_mask |= UCG_DT_PARAMS_FIELD_CONV;
         params.conv.start_pack = mca_coll_ucg_conv_start_pack;
         params.conv.pack = mca_coll_ucg_conv_pack;
@@ -394,10 +394,10 @@ static int mca_coll_ucg_type_adapt_op(ompi_op_t *ompi_op,
     /* *ucg_op should point to a memory space of size UCG_OP_SIZE */
     assert(*ucg_op != NULL);
     ucg_op_params_t params;
-    params.field_mask |= UCG_OP_PARAMS_FIELD_TYPE |
-                         UCG_OP_PARAMS_FIELD_USER_OP |
-                         UCG_OP_PARAMS_FIELD_USER_FUNC |
-                         UCG_OP_PARAMS_FIELD_COMMUTATIVE;
+    params.field_mask = UCG_OP_PARAMS_FIELD_TYPE |
+                        UCG_OP_PARAMS_FIELD_USER_OP |
+                        UCG_OP_PARAMS_FIELD_USER_FUNC |
+                        UCG_OP_PARAMS_FIELD_COMMUTATIVE;
     params.type = type;
     params.user_op = (void*)ompi_op;
     params.user_func = mca_coll_ucg_op_reduce;
