@@ -170,7 +170,7 @@ int mca_coll_ucx_allreduce(const void *sbuf, void *rbuf, int count,
     ompi_datatype_type_extent(dtype, &extent);
     ucs_status_t ret = mca_coll_ucx_check_total_data_size((size_t)extent, count);
     if (OPAL_UNLIKELY(ret != UCS_OK)) {
-        COLL_UCX_WARN("ucx component only support data size <= 2^32 bytes, fallback to ompi function.");
+        COLL_UCX_VERBOSE(1, "ucx component only support data size <= 2^32 bytes, fallback to ompi function.");
         goto fallback;
     }
 
@@ -195,13 +195,13 @@ int mca_coll_ucx_allreduce(const void *sbuf, void *rbuf, int count,
     ret = ucg_coll_allreduce_init(sbuf_rel, rbuf, count, (size_t)extent, dtype, ucx_module->ucg_group, 0,
                                   op, 0, 0, &coll);
     if (OPAL_UNLIKELY(ret != UCS_OK)) {
-        COLL_UCX_WARN("ucx allreduce init failed: %s, fallback to ompi function.", ucs_status_string(ret));
+        COLL_UCX_VERBOSE(1, "ucx allreduce init failed: %s, fallback to ompi function.", ucs_status_string(ret));
         goto fallback;
     }
 
     ret = ucg_collective_start_nbr(coll, req);
     if (OPAL_UNLIKELY(UCS_STATUS_IS_ERR(ret))) {
-        COLL_UCX_WARN("ucx allreduce start failed: %s, fallback to ompi function.", ucs_status_string(ret));
+        COLL_UCX_VERBOSE(1, "ucx allreduce start failed: %s, fallback to ompi function.", ucs_status_string(ret));
         goto fallback;
     }
 
@@ -550,13 +550,13 @@ int mca_coll_ucx_alltoallv(const void *sbuf, const int *scounts, const int *sdis
     is_recv_contig = mca_coll_ucg_check_contig_datatype(rdtype);
 
     if (!is_send_contig || !is_recv_contig) {
-        COLL_UCX_WARN("current hmpi alltoallv cannot support non-contig datatype, fallback to ompi function.");
+        COLL_UCX_VERBOSE(1, "current hmpi alltoallv cannot support non-contig datatype, fallback to ompi function.");
         goto fallback;
     }
 
     /* large datatype */
     if (sdtype_size > LARGE_DATATYPE_THRESHOLD || rdtype_size > LARGE_DATATYPE_THRESHOLD) {
-        COLL_UCX_WARN("current hmpi alltoallv cannot support large datatype, fallback to ompi function.");
+        COLL_UCX_VERBOSE(1, "current hmpi alltoallv cannot support large datatype, fallback to ompi function.");
         goto fallback;
     }
 
@@ -570,7 +570,7 @@ int mca_coll_ucx_alltoallv(const void *sbuf, const int *scounts, const int *sdis
     }
     ret = mca_coll_ucx_check_total_data_size((size_t)sdtype_size, total_send_count);
     if (OPAL_UNLIKELY(ret != UCS_OK)) {
-        COLL_UCX_WARN("ucx component only support data size <= 2^32 bytes, fallback to ompi function.");
+        COLL_UCX_VERBOSE(1, "ucx component only support data size <= 2^32 bytes, fallback to ompi function.");
         goto fallback;
     }
 
@@ -580,7 +580,7 @@ int mca_coll_ucx_alltoallv(const void *sbuf, const int *scounts, const int *sdis
     }
     ret = mca_coll_ucx_check_total_data_size((size_t)rdtype_size, total_recv_count);
     if (OPAL_UNLIKELY(ret != UCS_OK)) {
-        COLL_UCX_WARN("ucx component only support data size <= 2^32 bytes, fallback to ompi function.");
+        COLL_UCX_VERBOSE(1, "ucx component only support data size <= 2^32 bytes, fallback to ompi function.");
         goto fallback;
     }
 
@@ -589,7 +589,7 @@ int mca_coll_ucx_alltoallv(const void *sbuf, const int *scounts, const int *sdis
                                   rbuf, rcounts, (size_t)rdtype_size, rdtype, rdispls,
                                   ucx_module->ucg_group, 0, 0, 0, 0, &coll);
     if (OPAL_UNLIKELY(ret != UCS_OK)) {
-        COLL_UCX_WARN("ucx alltoallv init failed: %s", ucs_status_string(ret));
+        COLL_UCX_VERBOSE(1, "ucx alltoallv init failed: %s", ucs_status_string(ret));
         goto fallback;
     }
 
@@ -601,7 +601,7 @@ int mca_coll_ucx_alltoallv(const void *sbuf, const int *scounts, const int *sdis
     ucs_status_ptr_t req = request + mca_coll_ucx_component.request_size;
     ret = ucg_collective_start_nbr(coll, req);
     if (OPAL_UNLIKELY(UCS_STATUS_IS_ERR(ret))) {
-        COLL_UCX_WARN("ucx alltoallv start failed: %s", ucs_status_string(ret));
+        COLL_UCX_VERBOSE(1, "ucx alltoallv start failed: %s", ucs_status_string(ret));
         goto fallback;
     }
 
@@ -635,13 +635,13 @@ int mca_coll_ucx_barrier(struct ompi_communicator_t *comm, mca_coll_base_module_
     ucg_coll_h coll = NULL;
     ucs_status_t ret = ucg_coll_barrier_init(0, ucx_module->ucg_group, 0, 0, 0, 0, &coll);
     if (OPAL_UNLIKELY(ret != UCS_OK)) {
-        COLL_UCX_WARN("ucx barrier init failed: %s, fallback to ompi function.", ucs_status_string(ret));
+        COLL_UCX_VERBOSE(1, "ucx barrier init failed: %s, fallback to ompi function.", ucs_status_string(ret));
         goto fallback;
     }
 
     ret = ucg_collective_start_nbr(coll, req);
     if (OPAL_UNLIKELY(UCS_STATUS_IS_ERR(ret))) {
-        COLL_UCX_WARN("ucx barrier start failed: %s, fallback to ompi function.", ucs_status_string(ret));
+        COLL_UCX_VERBOSE(1, "ucx barrier start failed: %s, fallback to ompi function.", ucs_status_string(ret));
         goto fallback;
     }
 
@@ -677,19 +677,19 @@ int mca_coll_ucx_bcast(void *buff, int count, struct ompi_datatype_t *dtype, int
     ompi_datatype_type_extent(dtype, &dtype_size);
     ucs_status_t ret = mca_coll_ucx_check_total_data_size((size_t)dtype_size, count);
     if (OPAL_UNLIKELY(ret != UCS_OK)) {
-        COLL_UCX_WARN("ucx component only support data size <= 2^32 bytes, fallback to ompi function.");
+        COLL_UCX_VERBOSE(1, "ucx component only support data size <= 2^32 bytes, fallback to ompi function.");
         goto fallback;
     }
     ret = ucg_coll_bcast_init(buff, buff, count, (size_t)dtype_size, dtype, ucx_module->ucg_group, 0,
                               0, root, 0, &coll);
     if (OPAL_UNLIKELY(UCS_STATUS_IS_ERR(ret))) {
-        COLL_UCX_WARN("ucx bcast init failed: %s, fallback to ompi function.", ucs_status_string(ret));
+        COLL_UCX_VERBOSE(1, "ucx bcast init failed: %s, fallback to ompi function.", ucs_status_string(ret));
         goto fallback;
     }
 
     ret = ucg_collective_start_nbr(coll, req);
     if (OPAL_UNLIKELY(UCS_STATUS_IS_ERR(ret))) {
-        COLL_UCX_WARN("ucx bcast start failed: %s, fallback to ompi function.", ucs_status_string(ret));
+        COLL_UCX_VERBOSE(1, "ucx bcast start failed: %s, fallback to ompi function.", ucs_status_string(ret));
         goto fallback;
     }
 
