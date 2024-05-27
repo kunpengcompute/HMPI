@@ -125,7 +125,7 @@ typedef struct {
 
 typedef struct {
     opal_free_list_item_t super;
-    int buf[0];
+    int buf[];
 }mca_coll_ucg_subargs_t;
 OBJ_CLASS_DECLARATION(mca_coll_ucg_subargs_t);
 
@@ -218,11 +218,11 @@ OBJ_CLASS_DECLARATION(mca_coll_ucg_req_t);
 
 extern mca_coll_ucg_rpool_t mca_coll_ucg_rpool;
 /* Initialize coll request pool */
-int mca_coll_ucg_rpool_init();
+int mca_coll_ucg_rpool_init(void);
 /* cleanup the coll request pool */
-void mca_coll_ucg_rpool_cleanup();
+void mca_coll_ucg_rpool_cleanup(void);
 /* get an empty coll request */
-static inline mca_coll_ucg_req_t* mca_coll_ucg_rpool_get()
+static inline mca_coll_ucg_req_t* mca_coll_ucg_rpool_get(void)
 {
     return (mca_coll_ucg_req_t*)opal_free_list_wait(&mca_coll_ucg_rpool.flist);
 }
@@ -238,9 +238,9 @@ extern mca_coll_ucg_subargs_pool_t mca_coll_ucg_subargs_pool;
 /* Initialize coll subargs pool */
 int mca_coll_ucg_subargs_pool_init(uint32_t size);
 /* cleanup the coll subargs pool */
-void mca_coll_ucg_subargs_pool_cleanup();
+void mca_coll_ucg_subargs_pool_cleanup(void);
 /* get an empty coll subargs */
-static inline mca_coll_ucg_subargs_t* mca_coll_ucg_subargs_pool_get()
+static inline mca_coll_ucg_subargs_t* mca_coll_ucg_subargs_pool_get(void)
 {
     return (mca_coll_ucg_subargs_t*)opal_free_list_wait(&mca_coll_ucg_subargs_pool.flist);
 }
@@ -255,7 +255,7 @@ static inline void mca_coll_ucg_subargs_pool_put(mca_coll_ucg_subargs_t *subargs
 int mca_coll_ucg_rcache_init(int size);
 
 /* Cleanup request cache */
-void mca_coll_ucg_rcache_cleanup();
+void mca_coll_ucg_rcache_cleanup(void);
 
 /* Used in non-blocking and persistent requests, so that coll request will be
    cached when it's completed. */

@@ -28,7 +28,7 @@ static ucg_status_t mca_coll_ucg_op_reduce(void *op, const void *source, void *t
     return UCG_OK;
 }
 
-static inline mca_coll_ucg_convertor_t* mca_coll_ucg_conv_pool_get()
+static inline mca_coll_ucg_convertor_t* mca_coll_ucg_conv_pool_get(void)
 {
     return (mca_coll_ucg_convertor_t *)opal_free_list_wait(&mca_coll_ucg_conv_pool.flist);
 }
@@ -275,7 +275,7 @@ void mca_coll_ucg_type_free_kv(void)
     }
 }
 
-static void mca_coll_ucg_type_destroy_dt()
+static void mca_coll_ucg_type_destroy_dt(void)
 {
     ucg_dt_type_t type = UCG_DT_TYPE_INT8;
     for (; type < UCG_DT_TYPE_PREDEFINED_LAST; ++type) {
@@ -288,7 +288,7 @@ static void mca_coll_ucg_type_destroy_dt()
     return;
 }
 
-static int mca_coll_ucg_type_create_dt()
+static int mca_coll_ucg_type_create_dt(void)
 {
     ucg_dt_params_t params;
     params.field_mask = UCG_DT_PARAMS_FIELD_TYPE;
@@ -320,7 +320,7 @@ err_destroy_dt:
     return OMPI_ERROR;
 }
 
-static void mca_coll_ucg_type_destroy_op()
+static void mca_coll_ucg_type_destroy_op(void)
 {
     ucg_op_type_t type = UCG_OP_TYPE_MAX;
     for (; type < UCG_OP_TYPE_PREDEFINED_LAST; ++type) {
@@ -333,7 +333,7 @@ static void mca_coll_ucg_type_destroy_op()
     return;
 }
 
-static int mca_coll_ucg_type_create_op()
+static int mca_coll_ucg_type_create_op(void)
 {
     ucg_op_params_t params;
     params.field_mask = UCG_DT_PARAMS_FIELD_TYPE;
@@ -427,7 +427,7 @@ void mca_coll_ucg_conv_pool_cleanup(void)
     return;
 }
 
-int mca_coll_ucg_type_init()
+int mca_coll_ucg_type_init(void)
 {
     int rc;
     rc = mca_coll_ucg_type_create_dt();
@@ -444,7 +444,7 @@ int mca_coll_ucg_type_init()
     return OMPI_SUCCESS;
 }
 
-void mca_coll_ucg_type_cleanup()
+void mca_coll_ucg_type_cleanup(void)
 {
     mca_coll_ucg_type_destroy_op();
     mca_coll_ucg_type_destroy_dt();

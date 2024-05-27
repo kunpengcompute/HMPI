@@ -17,7 +17,7 @@
 #include "opal/util/argv.h"
 
 /*
- * Public string showing the coll ompi_hcol component version number
+ * Public string showing the coll ompi_ucg component version number
  */
 const char *mca_coll_ucg_component_version_string =
   "Open MPI UCG collective MCA component version " OMPI_VERSION;
@@ -74,7 +74,7 @@ mca_coll_ucg_component_t mca_coll_ucg_component = {
     /* MCA parameter */
     .priority = 90,             /* priority */
     .verbose = 2,               /* verbose level */
-    .max_rcache_size = 1024,
+    .max_rcache_size = 0,
     .disable_coll = NULL,
     .topology = NULL,
 
