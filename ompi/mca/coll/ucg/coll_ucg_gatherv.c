@@ -1,6 +1,6 @@
 /* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil -*- */
 /*
- * Copyright (c) 2022-2022 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2022-2024 Huawei Technologies Co., Ltd.
  *                         All rights reserved.
  * COPYRIGHT$
  *
@@ -20,7 +20,8 @@ static int mca_coll_ucg_request_gatherv_init(mca_coll_ucg_req_t *coll_req,
                                              void *rbuf, const int *recvcounts,
                                              const int *disps,
                                              ompi_datatype_t *rdtype, int root,
-                                             mca_coll_ucg_module_t *module)
+                                             mca_coll_ucg_module_t *module,
+                                             ucg_request_type_t nb)
 {
     ucg_dt_h ucg_send_dt;
     int rc = mca_coll_ucg_type_adapt(sdtype, &ucg_send_dt, NULL, NULL);
@@ -40,7 +41,7 @@ static int mca_coll_ucg_request_gatherv_init(mca_coll_ucg_req_t *coll_req,
     ucg_status_t status = ucg_request_gatherv_init(sbuf, sendcount, ucg_send_dt,
                                                    rbuf, recvcounts, disps, ucg_recv_dt, root,
                                                    module->group, &coll_req->info,
-                                                   &ucg_req);
+                                                   nb, &ucg_req);
     if (status != UCG_OK) {
         UCG_DEBUG("Failed to initialize ucg request, %s", ucg_status_string(status));
         return OMPI_ERROR;
@@ -69,7 +70,7 @@ int mca_coll_ucg_gatherv(const void *sbuf, int sendcount,
 
     rc = mca_coll_ucg_request_gatherv_init(&coll_req, sbuf, sendcount, sdtype,
                                            rbuf, recvcounts, disps, rdtype, root,
-                                           ucg_module);
+                                           ucg_module, UCG_REQUEST_BLOCKING);
     if (rc != OMPI_SUCCESS) {
         goto fallback;
     }
@@ -128,7 +129,7 @@ int mca_coll_ucg_gatherv_cache(const void *sbuf, int sendcount,
 
     MCA_COLL_UCG_REQUEST_PATTERN(&args, mca_coll_ucg_request_gatherv_init,
                                  sbuf, sendcount, sdtype, rbuf, recvcounts, disps,
-                                 rdtype, root, ucg_module);
+                                 rdtype, root, ucg_module, UCG_REQUEST_BLOCKING);
     return OMPI_SUCCESS;
 
 fallback:
@@ -159,7 +160,7 @@ int mca_coll_ucg_igatherv(const void *sbuf, int sendcount,
 
     rc = mca_coll_ucg_request_gatherv_init(coll_req, sbuf, sendcount, sdtype,
                                            rbuf, recvcounts, disps, rdtype, root,
-                                           ucg_module);
+                                           ucg_module, UCG_REQUEST_NONBLOCKING);
     if (rc != OMPI_SUCCESS) {
         mca_coll_ucg_request_cleanup(coll_req);
         mca_coll_ucg_rpool_put(coll_req);
@@ -179,7 +180,7 @@ int mca_coll_ucg_igatherv(const void *sbuf, int sendcount,
 fallback:
     UCG_DEBUG("fallback igatherv");
     return ucg_module->previous_igatherv(sbuf, sendcount, sdtype, rbuf,
-                                         disps, recvcounts, rdtype, root, comm, request,
+                                         recvcounts, disps, rdtype, root, comm, request,
                                          ucg_module->previous_gatherv_module);
 }
 
@@ -222,7 +223,7 @@ int mca_coll_ucg_igatherv_cache(const void *sbuf, int sendcount,
 
     MCA_COLL_UCG_REQUEST_PATTERN_NB(request, &args, mca_coll_ucg_request_gatherv_init,
                                     sbuf, sendcount, sdtype, rbuf, recvcounts, disps,
-                                    rdtype, root, ucg_module);
+                                    rdtype, root, ucg_module, UCG_REQUEST_NONBLOCKING);
     return OMPI_SUCCESS;
 
 fallback:
@@ -253,7 +254,7 @@ int mca_coll_ucg_gatherv_init(const void *sbuf, int sendcount,
 
     rc = mca_coll_ucg_request_gatherv_init(coll_req, sbuf, sendcount,
                                            sdtype, rbuf, recvcounts, disps, rdtype, root,
-                                           ucg_module);
+                                           ucg_module, UCG_REQUEST_BLOCKING);
     if (rc != OMPI_SUCCESS) {
         mca_coll_ucg_request_cleanup(coll_req);
         mca_coll_ucg_rpool_put(coll_req);

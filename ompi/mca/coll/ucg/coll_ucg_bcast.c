@@ -1,6 +1,6 @@
 /* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil -*- */
 /*
- * Copyright (c) 2022-2022 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2022-2024 Huawei Technologies Co., Ltd.
  *                         All rights reserved.
  * COPYRIGHT$
  *
@@ -17,7 +17,8 @@
 static int mca_coll_ucg_request_bcast_init(mca_coll_ucg_req_t *coll_req,
                                            void *buff, int count,
                                            ompi_datatype_t *datatype, int root,
-                                           mca_coll_ucg_module_t *module)
+                                           mca_coll_ucg_module_t *module,
+                                           ucg_request_type_t nb)
 {
     ucg_dt_h ucg_dt;
     int rc = mca_coll_ucg_type_adapt(datatype, &ucg_dt, NULL, NULL);
@@ -29,7 +30,8 @@ static int mca_coll_ucg_request_bcast_init(mca_coll_ucg_req_t *coll_req,
     // TODO: Check the memory type of buffer if possible
     ucg_request_h ucg_req;
     ucg_status_t status = ucg_request_bcast_init(buff, count, ucg_dt, root,
-                                                 module->group, &coll_req->info, &ucg_req);
+                                                 module->group, &coll_req->info,
+                                                 nb, &ucg_req);
     if (status != UCG_OK) {
         UCG_DEBUG("Failed to initialize ucg request, %s", ucg_status_string(status));
         return OMPI_ERROR;
@@ -53,7 +55,8 @@ int mca_coll_ucg_bcast(void *buff, int count, ompi_datatype_t *datatype,
         goto fallback;
     }
 
-    rc = mca_coll_ucg_request_bcast_init(&coll_req, buff, count, datatype, root, ucg_module);
+    rc = mca_coll_ucg_request_bcast_init(&coll_req, buff, count, datatype, root,
+                                         ucg_module, UCG_REQUEST_BLOCKING);
     if (rc != OMPI_SUCCESS) {
         goto fallback;
     }
@@ -103,7 +106,8 @@ int mca_coll_ucg_bcast_cache(void *buff, int count, ompi_datatype_t *datatype,
     }
 
     MCA_COLL_UCG_REQUEST_PATTERN(&args, mca_coll_ucg_request_bcast_init,
-                                 buff, count, datatype, root, ucg_module);
+                                 buff, count, datatype, root, ucg_module,
+                                 UCG_REQUEST_BLOCKING);
     return OMPI_SUCCESS;
 
 fallback:
@@ -128,7 +132,8 @@ int mca_coll_ucg_ibcast(void *buff, int count, MPI_Datatype datatype, int root,
         goto fallback;
     }
 
-    rc = mca_coll_ucg_request_bcast_init(coll_req, buff, count, datatype, root, ucg_module);
+    rc = mca_coll_ucg_request_bcast_init(coll_req, buff, count, datatype, root,
+                                         ucg_module, UCG_REQUEST_NONBLOCKING);
     if (rc != OMPI_SUCCESS) {
         mca_coll_ucg_request_cleanup(coll_req);
         mca_coll_ucg_rpool_put(coll_req);
@@ -182,7 +187,8 @@ int mca_coll_ucg_ibcast_cache(void *buffer, int count, MPI_Datatype datatype, in
     }
 
     MCA_COLL_UCG_REQUEST_PATTERN_NB(request, &args, mca_coll_ucg_request_bcast_init,
-                                    buffer, count, datatype, root, ucg_module);
+                                    buffer, count, datatype, root,
+                                    ucg_module, UCG_REQUEST_NONBLOCKING);
     return OMPI_SUCCESS;
 
 fallback:
@@ -207,7 +213,8 @@ int mca_coll_ucg_bcast_init(void *buffer, int count, MPI_Datatype datatype, int 
         goto fallback;
     }
 
-    rc = mca_coll_ucg_request_bcast_init(coll_req, buffer, count, datatype, root, ucg_module);
+    rc = mca_coll_ucg_request_bcast_init(coll_req, buffer, count, datatype, root,
+                                         ucg_module, UCG_REQUEST_BLOCKING);
     if (rc != OMPI_SUCCESS) {
         mca_coll_ucg_request_cleanup(coll_req);
         mca_coll_ucg_rpool_put(coll_req);

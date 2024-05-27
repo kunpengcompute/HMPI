@@ -1,6 +1,6 @@
 /* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil -*- */
 /*
- * Copyright (c) 2022-2022 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2022-2024 Huawei Technologies Co., Ltd.
  *                         All rights reserved.
  * COPYRIGHT$
  *
@@ -16,7 +16,8 @@
 static int mca_coll_ucg_request_allreduce_init(mca_coll_ucg_req_t *coll_req,
                                                const void *sbuf, void *rbuf, int count,
                                                ompi_datatype_t *datatype, ompi_op_t *op,
-                                               mca_coll_ucg_module_t *module)
+                                               mca_coll_ucg_module_t *module,
+                                               ucg_request_type_t nb)
 {
     /* Trick: Prepare sufficient space for storing ucg_op_h. */
     char tmp[UCG_OP_SIZE];
@@ -31,8 +32,9 @@ static int mca_coll_ucg_request_allreduce_init(mca_coll_ucg_req_t *coll_req,
     // TODO: Check the memory type of buffer if possible
     ucg_request_h ucg_req;
     const void *tmp_sbuf = sbuf == MPI_IN_PLACE ? UCG_IN_PLACE : sbuf;
-    ucg_status_t status = ucg_request_allreduce_init(tmp_sbuf, rbuf, count, ucg_dt, ucg_op,
-                                                     module->group, &coll_req->info, &ucg_req);
+    ucg_status_t status = ucg_request_allreduce_init(tmp_sbuf, rbuf, count,
+                                                     ucg_dt, ucg_op, module->group,
+                                                     &coll_req->info, nb, &ucg_req);
     if (status != UCG_OK) {
         UCG_DEBUG("Failed to initialize ucg request, %s", ucg_status_string(status));
         return OMPI_ERROR;
@@ -57,7 +59,8 @@ int mca_coll_ucg_allreduce(const void *sbuf, void *rbuf, int count,
         goto fallback;
     }
 
-    rc = mca_coll_ucg_request_allreduce_init(&coll_req, sbuf, rbuf, count, datatype, op, ucg_module);
+    rc = mca_coll_ucg_request_allreduce_init(&coll_req, sbuf, rbuf, count, datatype,
+                                             op, ucg_module, UCG_REQUEST_BLOCKING);
     if (rc != OMPI_SUCCESS) {
         goto fallback;
     }
@@ -109,7 +112,8 @@ int mca_coll_ucg_allreduce_cache(const void *sbuf, void *rbuf, int count,
     }
 
     MCA_COLL_UCG_REQUEST_PATTERN(&args, mca_coll_ucg_request_allreduce_init,
-                                 sbuf, rbuf, count, datatype, op, ucg_module);
+                                 sbuf, rbuf, count, datatype, op,
+                                 ucg_module, UCG_REQUEST_BLOCKING);
     return OMPI_SUCCESS;
 
 fallback:
@@ -135,7 +139,8 @@ int mca_coll_ucg_iallreduce(const void *sbuf, void *rbuf, int count,
         goto fallback;
     }
 
-    rc = mca_coll_ucg_request_allreduce_init(coll_req, sbuf, rbuf, count, datatype, op, ucg_module);
+    rc = mca_coll_ucg_request_allreduce_init(coll_req, sbuf, rbuf, count, datatype, op,
+                                             ucg_module, UCG_REQUEST_NONBLOCKING);
     if (rc != OMPI_SUCCESS) {
         mca_coll_ucg_request_cleanup(coll_req);
         mca_coll_ucg_rpool_put(coll_req);
@@ -190,7 +195,8 @@ int mca_coll_ucg_iallreduce_cache(const void *sbuf, void *rbuf, int count,
     }
 
     MCA_COLL_UCG_REQUEST_PATTERN_NB(request, &args, mca_coll_ucg_request_allreduce_init,
-                                    sbuf, rbuf, count, datatype, op, ucg_module);
+                                    sbuf, rbuf, count, datatype, op, ucg_module,
+                                    UCG_REQUEST_NONBLOCKING);
     return OMPI_SUCCESS;
 
 fallback:
@@ -215,7 +221,8 @@ int mca_coll_ucg_allreduce_init(const void *sbuf, void *rbuf, int count, ompi_da
         goto fallback;
     }
 
-    rc = mca_coll_ucg_request_allreduce_init(coll_req, sbuf, rbuf, count, datatype, op, ucg_module);
+    rc = mca_coll_ucg_request_allreduce_init(coll_req, sbuf, rbuf, count, datatype, op,
+                                             ucg_module, UCG_REQUEST_BLOCKING);
     if (rc != OMPI_SUCCESS) {
         mca_coll_ucg_request_cleanup(coll_req);
         mca_coll_ucg_rpool_put(coll_req);
