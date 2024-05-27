@@ -5,6 +5,8 @@
  *                         reserved.
  * Copyright (c) 2018      Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
+ * Copyright (c) 2022      Huawei Technologies Co., Ltd. All rights reserved.
+ *
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -219,7 +221,12 @@ int mca_pml_ucx_open(void)
                                UCP_PARAM_FIELD_MT_WORKERS_SHARED |
                                UCP_PARAM_FIELD_ESTIMATED_NUM_EPS;
     params.features          = UCP_FEATURE_TAG;
+#ifdef HAVE_UCG_API_UCG_H
+    /* Adapt to UCG internal ucp requests. */
+    params.request_size      = sizeof(ompi_request_t) + 4;
+#else
     params.request_size      = sizeof(ompi_request_t);
+#endif
     params.request_init      = mca_pml_ucx_request_init;
     params.request_cleanup   = mca_pml_ucx_request_cleanup;
     params.tag_sender_mask   = PML_UCX_SPECIFIC_SOURCE_MASK;
