@@ -8,6 +8,7 @@
  * Copyright (c) 2017      Los Alamos National Security, LLC. All rights
  *                         reserved.
  * Copyright (c) 2021      IBM Corporation.  All rights reserved.
+ * Copyright (c) 2024 Huawei Technologies Co., Ltd. All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -50,6 +51,7 @@ typedef struct {
     opal_list_t cache;
     opal_list_t dmdx;
     bool silence_warning;
+    long wait_time;
 } mca_pmix_pmix3x_component_t;
 
 OPAL_DECLSPEC extern mca_pmix_pmix3x_component_t mca_pmix_pmix3x_component;

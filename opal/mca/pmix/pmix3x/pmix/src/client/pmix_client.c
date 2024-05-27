@@ -8,6 +8,7 @@
  * Copyright (c) 2016-2017 Mellanox Technologies, Inc.
  *                         All rights reserved.
  * Copyright (c) 2016-2017 IBM Corporation.  All rights reserved.
+ * Copyright (c) 2024 Huawei Technologies Co., Ltd. All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -71,7 +72,7 @@ static pmix_status_t pmix_init_result = PMIX_ERR_INIT;
 #include "src/common/pmix_iof.h"
 
 #include "pmix_client_ops.h"
-
+#include "opal/mca/pmix/pmix3x/pmix3x.h"
 #define PMIX_MAX_RETRIES 10
 
 static void _notify_complete(pmix_status_t status, void *cbdata)
@@ -904,7 +905,7 @@ PMIX_EXPORT pmix_status_t PMIx_Finalize(const pmix_info_t info[], size_t ninfo)
     pmix_status_t rc;
     size_t n;
     pmix_client_timeout_t tev;
-    struct timeval tv = {2, 0};
+    struct timeval tv = {mca_pmix_pmix3x_component.wait_time, 0};
     pmix_peer_t *peer;
     int i;
 

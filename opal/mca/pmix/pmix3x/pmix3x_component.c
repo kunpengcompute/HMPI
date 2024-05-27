@@ -3,6 +3,7 @@
  * Copyright (c) 2014-2018 Research Organization for Information Science
  *                         and Technology (RIST). All rights reserved.
  * Copyright (c) 2016-2022 Cisco Systems, Inc.  All rights reserved
+ * Copyright (c) 2024 Huawei Technologies Co., Ltd. All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -16,6 +17,7 @@
  * entire components just to query their version and parameters.
  */
 
+#include "opal/mca/base/mca_base_var.h"
 #include "opal_config.h"
 
 #include "opal/constants.h"
@@ -107,7 +109,13 @@ static int external_register(void)
                                            MCA_BASE_VAR_SCOPE_CONSTANT,
                                            &pmix_library_version);
     free(tmp);
-
+    mca_pmix_pmix3x_component.wait_time = 5;
+    (void) mca_base_component_var_register(component, "wait_time",
+                                           "Wait time about PMIX_Finalize",
+                                           MCA_BASE_VAR_TYPE_LONG, NULL, 0, 0,
+                                           OPAL_INFO_LVL_4,
+                                           MCA_BASE_VAR_SCOPE_ALL,
+                                           &mca_pmix_pmix3x_component.wait_time);
     return OPAL_SUCCESS;
 }
 
