@@ -1,7 +1,7 @@
 /* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil -*- */
 /*
  * Copyright (c) 2022-2022 Huawei Technologies Co., Ltd.
- *                                All rights reserved.
+ *                         All rights reserved.
  * COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -123,7 +123,7 @@ typedef struct {
 
     mca_coll_base_module_allgatherv_init_fn_t previous_allgatherv_init;
     mca_coll_base_module_t *previous_allgatherv_init_module;
-}mca_coll_ucg_module_t;
+} mca_coll_ucg_module_t;
 OBJ_CLASS_DECLARATION(mca_coll_ucg_module_t);
 
 int mca_coll_ucg_init_query(bool enable_progress_threads, bool enable_mpi_threads);
@@ -153,7 +153,7 @@ int mca_coll_ucg_allreduce_init(const void *sbuf, void *rbuf, int count, ompi_da
                                 ompi_op_t *op, ompi_communicator_t *comm, ompi_info_t *info,
                                 ompi_request_t **request, mca_coll_base_module_t *module);
 
-/* bcast*/
+/* bcast */
 int mca_coll_ucg_bcast(void *buff, int count, ompi_datatype_t *datatype,
                        int root, ompi_communicator_t *comm,
                        mca_coll_base_module_t *module);
@@ -174,7 +174,7 @@ int mca_coll_ucg_bcast_init(void *buffer, int count, MPI_Datatype datatype, int 
                             ompi_communicator_t *comm, ompi_info_t *info,
                             ompi_request_t **request, mca_coll_base_module_t *module);
 
-/* alltoallv*/
+/* alltoallv */
 int mca_coll_ucg_alltoallv(const void *sbuf, const int *scounts, const int *sdispls,
                            ompi_datatype_t *sdtype, void *rbuf, const int *rcounts,
                            const int *rdispls, ompi_datatype_t *rdtype,
@@ -203,7 +203,7 @@ int mca_coll_ucg_alltoallv_init(const void *sbuf, const int *scounts, const int 
                                 ompi_communicator_t *comm, ompi_info_t *info,
                                 ompi_request_t **request, mca_coll_base_module_t *module);
 
-/*barrier*/
+/*barrier */
 int mca_coll_ucg_barrier(ompi_communicator_t *comm, mca_coll_base_module_t *module);
 
 int mca_coll_ucg_barrier_cache(ompi_communicator_t *comm, mca_coll_base_module_t *module);
@@ -217,7 +217,7 @@ int mca_coll_ucg_ibarrier_cache(ompi_communicator_t *comm, ompi_request_t **requ
 int mca_coll_ucg_barrier_init(ompi_communicator_t *comm, ompi_info_t *info,
                               ompi_request_t **request, mca_coll_base_module_t *module);
 
-/*scatterv*/
+/*scatterv */
 int mca_coll_ucg_scatterv(const void *sbuf, const int *scounts, const int *disps,
                           ompi_datatype_t *sdtype, void *rbuf, int rcount,
                           ompi_datatype_t *rdtype, int root,

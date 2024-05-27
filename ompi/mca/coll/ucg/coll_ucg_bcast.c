@@ -1,7 +1,7 @@
 /* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil -*- */
 /*
  * Copyright (c) 2022-2022 Huawei Technologies Co., Ltd.
- *                                All rights reserved.
+ *                         All rights reserved.
  * COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -26,7 +26,7 @@ static int mca_coll_ucg_request_bcast_init(mca_coll_ucg_req_t *coll_req,
         return rc;
     }
 
-    //TODO: Check the memory type of buffer if possible
+    // TODO: Check the memory type of buffer if possible
     ucg_request_h ucg_req;
     ucg_status_t status = ucg_request_bcast_init(buff, count, ucg_dt, root,
                                                  module->group, &coll_req->info, &ucg_req);

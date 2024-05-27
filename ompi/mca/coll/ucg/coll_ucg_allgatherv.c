@@ -49,6 +49,55 @@ static int mca_coll_ucg_request_allgatherv_init(mca_coll_ucg_req_t *coll_req,
     return OMPI_SUCCESS;
 }
 
+static int mca_coll_ucg_allgatherv_check(const void *sbuf, ompi_datatype_t *sdtype,
+                                         const int *rcounts, ompi_datatype_t *rdtype,
+                                         ompi_communicator_t *comm)
+{
+    size_t sdtype_size, rdtype_size;
+    ompi_datatype_type_size(sdtype, &sdtype_size);
+    ompi_datatype_type_size(rdtype, &rdtype_size);
+
+    size_t dt_size = (sbuf == MPI_IN_PLACE) ? rdtype_size : sdtype_size;
+    size_t total_msg_size = 0;
+    int group_size = ompi_comm_size(comm);
+    for (int i = 0; i < group_size; ++i) {
+        total_msg_size += dt_size * rcounts[i];
+    }
+    size_t avg_size = total_msg_size / group_size;
+    // TODO: Small message performance is bad
+    int supported = 1;
+    if (group_size <= 16) {
+        if (avg_size <= 64) {
+            supported = 0;
+        }
+    } else if (group_size <= 32) {
+        if (avg_size <= 1024) {
+            supported = 0;
+        }
+    } else if (group_size <= 64) {
+        if (avg_size <= 2048) {
+            supported = 0;
+        }
+    } else if (group_size <= 128) {
+        if (avg_size <= 512) {
+            supported = 0;
+        }
+    } else if (group_size <= 256) {
+        if (avg_size <= 1024) {
+            supported = 0;
+        }
+    } else if (group_size <= 512) {
+        if (avg_size <= 256) {
+            supported = 0;
+        }
+    }else {
+        if (avg_size <= 64) {
+            supported = 0;
+        }
+    }
+    return supported ? OMPI_SUCCESS : OMPI_ERR_NOT_SUPPORTED;
+}
+
 int mca_coll_ucg_allgatherv(const void *sbuf, int scount, ompi_datatype_t *sdtype,
                             void *rbuf, const int *rcounts, const int *disps,
                             ompi_datatype_t *rdtype, ompi_communicator_t *comm,
@@ -60,6 +109,10 @@ int mca_coll_ucg_allgatherv(const void *sbuf, int scount, ompi_datatype_t *sdtyp
     mca_coll_ucg_req_t coll_req;
     OBJ_CONSTRUCT(&coll_req, mca_coll_ucg_req_t);
     int rc;
+    rc = mca_coll_ucg_allgatherv_check(sbuf, sdtype, rcounts, rdtype, comm);
+    if (rc != OMPI_SUCCESS) {
+        goto fallback;
+    }
     rc = mca_coll_ucg_request_common_init(&coll_req, false, false);
     if (rc != OMPI_SUCCESS) {
         goto fallback;
@@ -110,6 +163,10 @@ int mca_coll_ucg_allgatherv_cache(const void *sbuf, int scount, ompi_datatype_t 
     };
 
     int rc;
+    rc = mca_coll_ucg_allgatherv_check(sbuf, sdtype, rcounts, rdtype, comm);
+    if (rc != OMPI_SUCCESS) {
+        goto fallback;
+    }
     rc = mca_coll_ucg_request_execute_cache(&args);
     if (rc == OMPI_SUCCESS) {
         return rc;
