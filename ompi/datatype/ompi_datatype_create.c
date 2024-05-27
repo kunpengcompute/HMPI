@@ -10,6 +10,8 @@
  *                         University of Stuttgart.  All rights reserved.
  * Copyright (c) 2009      Oak Ridge National Labs.  All rights reserved.
  * Copyright (c) 2010-2018 Cisco Systems, Inc.  All rights reserved
+ * Copyright (c) 2021      Huawei Technologies Co., Ltd.
+ *                         All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -38,6 +40,7 @@ static void __ompi_datatype_allocate( ompi_datatype_t* datatype )
     datatype->name[0]            = '\0';
     datatype->packed_description = NULL;
     datatype->pml_data           = 0;
+    datatype->coll_data          = 0;
 }
 
 static void __ompi_datatype_release(ompi_datatype_t * datatype)
