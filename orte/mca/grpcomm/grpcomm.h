@@ -61,6 +61,7 @@ typedef void (*orte_grpcomm_cbfunc_t)(int status, opal_buffer_t *buf, void *cbda
 typedef struct {
     opal_object_t super;
     orte_process_name_t *signature;
+    size_t sz;
     size_t coll_id;
 } orte_grpcomm_signature_t;
 OBJ_CLASS_DECLARATION(orte_grpcomm_signature_t);
