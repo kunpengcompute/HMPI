@@ -868,6 +868,8 @@ int orte_dt_print_sig(char **output, char *prefix, orte_grpcomm_signature_t *src
         free(tmp);
         tmp = tmp2;
     }
+
+    asprintf(&tmp, "%s COLL_ID: %ld", tmp, src->coll_id);
     *output = tmp;
     return ORTE_SUCCESS;
 }
