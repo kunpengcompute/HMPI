@@ -41,15 +41,15 @@ typedef struct {
     bool initialized;
 
     /** MCA parameter */
-    int priority;                /* Priority of this component */
-    int verbose;                 /* Verbose level of this component */
-    int max_rcache_size;         /* Max size of request cache */
-    char *disable_coll;          /* JUST FOR TEST, may remove later */
-    char *topology;              /* Topology file path */
+    int priority;               /* Priority of this component */
+    int verbose;                /* Verbose level of this component */
+    int max_rcache_size;        /* Max size of request cache */
+    char *disable_coll;         /* JUST FOR TEST, may remove later */
+    char *topology;             /* Topology file path */
 
     ucg_context_h ucg_context;
 
-    char **blacklist; /** disabled collective operations */
+    char **blacklist; /**  disabled collective operations */
 } mca_coll_ucg_component_t;
 OMPI_MODULE_DECLSPEC extern mca_coll_ucg_component_t mca_coll_ucg_component;
 
@@ -167,7 +167,7 @@ int mca_coll_ucg_ibcast(void *buffer, int count, MPI_Datatype datatype, int root
                         mca_coll_base_module_t *module);
 
 int mca_coll_ucg_ibcast_cache(void *buffer, int count, MPI_Datatype datatype, int root,
-                              ompi_communicator_t *comm, ompi_request_t **request,
+                            ompi_communicator_t *comm, ompi_request_t **request,
                               mca_coll_base_module_t *module);
 
 int mca_coll_ucg_bcast_init(void *buffer, int count, MPI_Datatype datatype, int root,
@@ -186,10 +186,10 @@ int mca_coll_ucg_alltoallv_cache(const void *sbuf, const int *scounts, const int
                                  ompi_communicator_t *comm, mca_coll_base_module_t *module);
 
 int mca_coll_ucg_ialltoallv(const void *sbuf, const int *scounts, const int *sdispls,
-                            ompi_datatype_t *sdtype, void *rbuf, const int *rcounts,
-                            const int *rdispls, ompi_datatype_t *rdtype,
-                            ompi_communicator_t *comm, ompi_request_t **request,
-                            mca_coll_base_module_t *module);
+                           ompi_datatype_t *sdtype, void *rbuf, const int *rcounts,
+                           const int *rdispls, ompi_datatype_t *rdtype,
+                           ompi_communicator_t *comm, ompi_request_t **request,
+                           mca_coll_base_module_t *module);
 
 int mca_coll_ucg_ialltoallv_cache(const void *sbuf, const int *scounts, const int *sdispls,
                                   ompi_datatype_t *sdtype, void *rbuf, const int *rcounts,
@@ -203,7 +203,7 @@ int mca_coll_ucg_alltoallv_init(const void *sbuf, const int *scounts, const int 
                                 ompi_communicator_t *comm, ompi_info_t *info,
                                 ompi_request_t **request, mca_coll_base_module_t *module);
 
-/*barrier */
+/* barrier */
 int mca_coll_ucg_barrier(ompi_communicator_t *comm, mca_coll_base_module_t *module);
 
 int mca_coll_ucg_barrier_cache(ompi_communicator_t *comm, mca_coll_base_module_t *module);
@@ -217,7 +217,7 @@ int mca_coll_ucg_ibarrier_cache(ompi_communicator_t *comm, ompi_request_t **requ
 int mca_coll_ucg_barrier_init(ompi_communicator_t *comm, ompi_info_t *info,
                               ompi_request_t **request, mca_coll_base_module_t *module);
 
-/*scatterv */
+/* scatterv */
 int mca_coll_ucg_scatterv(const void *sbuf, const int *scounts, const int *disps,
                           ompi_datatype_t *sdtype, void *rbuf, int rcount,
                           ompi_datatype_t *rdtype, int root,

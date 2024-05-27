@@ -47,6 +47,6 @@ mca_coll_ucg_la_LIBADD = $(coll_ucg_LIBS)
 mca_coll_ucg_la_LDFLAGS = -module -avoid-version $(coll_ucg_LDFLAGS)
 
 noinst_LTLIBRARIES = $(component_noinst)
-libmca_coll_ucg_la_SOURCES = $(coll_ucg_sources)
+libmca_coll_ucg_la_SOURCES =$(coll_ucg_sources)
 libmca_coll_ucg_la_LIBADD = $(coll_ucg_LIBS)
 libmca_coll_ucg_la_LDFLAGS = -module -avoid-version $(coll_ucg_LDFLAGS)

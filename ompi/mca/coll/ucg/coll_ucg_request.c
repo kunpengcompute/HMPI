@@ -210,7 +210,7 @@ void mca_coll_ucg_rpool_cleanup(void)
 int mca_coll_ucg_subargs_pool_init(uint32_t size)
 {
     OBJ_CONSTRUCT(&mca_coll_ucg_subargs_pool.flist, opal_free_list_t);
-    int rc = opal_free_list_init(&mca_coll_ucg_subargs_pool.flist, 
+    int rc = opal_free_list_init(&mca_coll_ucg_subargs_pool.flist,
                                  sizeof(mca_coll_ucg_subargs_t) + 4 * size * sizeof(int),
                                  opal_cache_line_size, OBJ_CLASS(mca_coll_ucg_subargs_t),
                                  0, 0,
@@ -367,7 +367,7 @@ void mca_coll_ucg_rcache_mark_cacheable(mca_coll_ucg_req_t *coll_req,
                                         mca_coll_ucg_args_t *key)
 {
     OBJ_CONSTRUCT(&coll_req->list, opal_list_item_t);
-    mca_coll_ucg_rcache_coll_req_args_init(&coll_req->args, key);    // deep copy
+    mca_coll_ucg_rcache_coll_req_args_init(&coll_req->args, key);   // deep copy
     ucg_coll_ucg_rcache_ref(coll_req);
     coll_req->cacheable = true;
     return;
@@ -577,7 +577,7 @@ int mca_coll_ucg_request_common_init(mca_coll_ucg_req_t *coll_req,
     ucg_request_info_t *info = &coll_req->info;
     info->field_mask = 0;
     if (nb || persistent) {
-        //For those case, the request is not done in the current call stack.
+        // For those case, the request is not done in the current call stack.
         info->field_mask |= UCG_REQUEST_INFO_FIELD_CB;
         info->complete_cb.cb = mca_coll_ucg_request_complete;
         info->complete_cb.arg = coll_req;
@@ -622,7 +622,7 @@ int mca_coll_ucg_request_execute(mca_coll_ucg_req_t *coll_req)
 
     int count = 0;
     while (UCG_INPROGRESS == (status = ucg_request_test(ucg_req))) {
-        //TODO: test wether opal_progress() can be removed
+        // TODO: test wether opal_progress() can be removed
         if (++count % 1000 == 0) {
             opal_progress();
         }
