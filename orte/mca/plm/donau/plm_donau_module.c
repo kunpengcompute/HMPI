@@ -281,6 +281,10 @@ static void launch_daemons(int fd, short args, void *cbdata)
     /* create nodelist */
     nodelist_argv = NULL;
 
+    /* get the hnp node and send to donau */
+    orte_node_t *hnp_node = (orte_node_t*)opal_pointer_array_get_item(orte_node_pool, 0);
+    opal_argv_append_nosize(&nodelist_argv, hnp_node->name);
+
     for (nnode = 0; nnode < map->nodes->size; nnode++) {
         if (NULL == (node = (orte_node_t*)opal_pointer_array_get_item(map->nodes, nnode))){
             continue;
