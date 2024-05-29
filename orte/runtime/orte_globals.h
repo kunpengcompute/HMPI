@@ -597,9 +597,13 @@ ORTE_DECLSPEC extern int orte_stack_trace_wait_timeout;
 /* enable PMIx-based "instant on" support */
 ORTE_DECLSPEC extern bool orte_enable_instant_on_support;
 
-/* flag about donau launch: 0 - dstart
-                            1 - drun */
+/* flag about donau launch: DONAU_SSH - ssh/dstart
+ *                          DONAU_DRUN - drun(default) */
 ORTE_DECLSPEC extern int orte_donau_launch_type;
+enum {
+    DONAU_SSH = 0,
+    DONAU_DRUN = 1
+};
 
 /* exec path about drun/start from DONAU */
 ORTE_DECLSPEC extern char *donau_launch_exec;

@@ -676,7 +676,10 @@ static int donau_compare(const void *a, const void *b)
 static char *donau_sort_nodes(char* nodes)
 {
     char* nodeArray[MAX_NODE_COUNT];
-    char* sortNodes = malloc(DONAU_MAX_NODELIST_LENGTH + 1);
+    char* sortedNodes = malloc(DONAU_MAX_NODELIST_LENGTH + 1);
+    if (NULL == sortedNodes) {
+        return NULL;
+    }
     int node_idx = 0;
 
     nodeArray[node_idx] = strtok(nodes, ",");
@@ -703,6 +706,9 @@ static char *donau_sort_nodes(char* nodes)
 static char *donau_merge_nodes(char *nodelist)
 {
     char* result = (char*)malloc(DONAU_MAX_NODELIST_LENGTH * sizeof(char));
+    if (NULL == result) {
+        return NULL;
+    }
     result[0] = '\0';
     char *nodelist_bak = strdup(nodelist);
     char* token = strtok(nodelist_bak, ",");

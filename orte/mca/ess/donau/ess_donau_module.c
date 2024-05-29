@@ -60,7 +60,7 @@ static int rte_init(void)
     /* Start by getting a unique name */
     donau_set_name();
     /* if I am a daemon, complete my setup using the
-     * defult procedure
+     * default procedure
      */
     if (ORTE_PROC_IS_DAEMON) {
         if (ORTE_SUCCESS != (ret = orte_ess_base_orted_setup())) {
@@ -144,6 +144,10 @@ static int donau_set_name(void)
     ORTE_PROC_MY_NAME->jobid = jobid;
 
     donau_nodeid = atoi(getenv("CCS_NODE_RANK"));
+    if (donau_nodeid < 0) {
+        ORTE_ERROR_LOG(ORTE_ERR_INVALID_NODE_RANK);
+        return ORTE_ERR_INVALID_NODE_RANK;
+    }
     opal_output_verbose(1, orte_ess_base_framework.framework_output,
                         "ess:donau found CCS_NODE_RANK set to %d",
                         donau_nodeid);

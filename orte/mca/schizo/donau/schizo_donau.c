@@ -129,4 +129,5 @@ static void finalize(void)
         opal_argv_free(pushed_envs);
         opal_argv_free(pushed_vals);
     }
+    return;
 }

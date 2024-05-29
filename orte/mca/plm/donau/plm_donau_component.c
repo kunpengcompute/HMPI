@@ -5,14 +5,14 @@
  * $COPYRIGHT$
  * 
  * Additional copyrights may follow
- * 
+ *
  * $HEADER$
- * 
+ *
  * These symbols are in a file by themselves to provide nice linker
  * semantics. Since linkers generally pull in symbols by object
  * files, keeping these symbols as the only symbols in this file
  * prevents utility programs such as "ompi_info" from having to import
- * entire component just to query their version and parameters.
+ * entire components just to query their version and parameters.
  */
 
 #include "orte_config.h"
@@ -107,10 +107,10 @@ static int plm_donau_open(void)
 static int orte_plm_donau_component_query(mca_base_module_t **module, int *priority)
 {
     /* Are we running under a DONAU job? */
-   char *donau_job_id = getenv("CCS_JOB_ID");
-   if (NULL != donau_job_id &&
-       0 != strlen(donau_job_id) &&
-       1 == orte_donau_launch_type) {
+    char *donau_job_id = getenv("CCS_JOB_ID");
+    if (NULL != donau_job_id &&
+        0 != strlen(donau_job_id) &&
+        DONAU_DRUN == orte_donau_launch_type) {
         *priority = 100;
         OPAL_OUTPUT_VERBOSE((1, orte_plm_base_framework.framework_output,
                              "%s plm:donau: available for selection",

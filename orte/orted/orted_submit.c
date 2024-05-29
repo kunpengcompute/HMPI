@@ -216,8 +216,8 @@ int orte_submit_init(int argc, char *argv[],
             opal_setenv(param, argv[i+2], true, &environ);
             if (0 == strcmp(argv[i+1], "plm_rsh_agent") && (NULL != strstr(argv[i+2], "ssh") ||
                 NULL != strstr(argv[i+2], "dstart"))) {
-                    orte_donau_launch_type = 0;
-                }
+                orte_donau_launch_type = DONAU_SSH;
+            }
             free(param);
         } else if (0 == strcmp(argv[i], "-am") ||
                    0 == strcmp(argv[i], "--am")) {
@@ -234,8 +234,8 @@ int orte_submit_init(int argc, char *argv[],
     /* check if donau gives var about OMPI_MCA_plm_rsh_agent */
     donau_launch_exec = getenv("OMPI_MCA_plm_rsh_agent");
     if (NULL != donau_launch_exec && (NULL != strstr(donau_launch_exec, "ssh") ||
-                       strstr(donau_launch_exec, "dstart"))) {
-                orte_donau_launch_type = 0
+        strstr(donau_launch_exec, "dstart"))) {
+        orte_donau_launch_type = DONAU_SSH;
     }
 
     /* init only the util portion of OPAL */

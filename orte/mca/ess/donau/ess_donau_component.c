@@ -3,11 +3,11 @@
  * Copyright (c) 2024      Huawei Technologies Co., Ltd.
  *                         All rights reserved.
  * $COPYRIGHT$
- * 
+ *
  * Additional copyrights may follow
- * 
+ *
  * $HEADER$
- * 
+ *
  * These symbols are in a file by themselves to provide nice linker
  * semantics. Since linkers generally pull in symbols by object
  * files, keeping these symbols as the only symbols in this file
@@ -63,12 +63,12 @@ int orte_ess_donau_component_query(mca_base_module_t **module, int *priority)
      * answer to both is "yes", then we were launched
      * by mpirun in a donau world, so make ourselves available
      */
-   char *donau_job_id = getenv("CCS_JOB_ID");
-   if (ORTE_PROC_IS_DAEMON &&
-       NULL != donau_job_id &&
-       0 != strlen(donau_job_id) &&
-       NULL != orte_process_info.my_hnp_uri &&
-       1 == orte_donau_launch_type) {
+    char *donau_job_id = getenv("CCS_JOB_ID");
+    if (ORTE_PROC_IS_DAEMON &&
+        NULL != donau_job_id &&
+        0 != strlen(donau_job_id) &&
+        NULL != orte_process_info.my_hnp_uri &&
+        DONAU_DRUN == orte_donau_launch_type) {
         *priority = 100;
         *module = (mca_base_module_t *)&orte_ess_donau_module;
         return ORTE_SUCCESS;
@@ -77,7 +77,7 @@ int orte_ess_donau_component_query(mca_base_module_t **module, int *priority)
     /*Sadly, no */
     *priority = -1;
     *module = NULL;
-    return ORTE_ERROR;   
+    return ORTE_ERROR;
 }
 
 int orte_ess_donau_component_close(void)

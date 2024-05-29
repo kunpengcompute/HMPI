@@ -86,7 +86,7 @@ static int orte_ras_donau_component_query(mca_base_module_t **module, int *prior
 {
     /* check if donau is running here */
     char *donau_job_id = getenv("CCS_JOB_ID");
-    if (NULL == donau_job_id || 0 == strlen(donau_job_id) || 0 == orte_donau_launch_type) {
+    if (NULL == donau_job_id || 0 == strlen(donau_job_id) || DONAU_SSH == orte_donau_launch_type) {
         /* disqualify ourselves */
         *priority = 0;
         *module = NULL;

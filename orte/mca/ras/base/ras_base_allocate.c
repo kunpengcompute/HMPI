@@ -234,7 +234,7 @@ void orte_ras_base_allocate(int fd, short args, void *cbdata)
         }
     }
     char *alloc_path = NULL;
-    if (NULL != (alloc_path = getenv("CCS_ALLOC_FILE")) && 0 == orte_donau_launch_type) {
+    if (NULL != (alloc_path = getenv("CCS_ALLOC_FILE")) && DONAU_SSH == orte_donau_launch_type) {
         get_alloc(alloc_path, &nodes);
     }
     /* If something came back, save it and we are done */

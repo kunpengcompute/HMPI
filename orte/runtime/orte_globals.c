@@ -210,9 +210,9 @@ bool orte_report_silent_errors = false;
 /* enable PMIx-based "instant on" support */
 bool orte_enable_instant_on_support = false;
 
-/* flag about donau launch: 0 - ssh/dstart
-                            1 - drun */
-int orte_donau_launch_type = 1;
+/* flag about donau launch: DONAU_SSH - ssh/dstart
+ *                          DONAU_DRUN - drun(default) */
+int orte_donau_launch_type = DONAU_DRUN;
 
 /* exec path about drun/start from DONAU */
 char *donau_launch_exec = NULL;
