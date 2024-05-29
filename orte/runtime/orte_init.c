@@ -156,12 +156,6 @@ int orte_init(int* pargc, char*** pargv, orte_proc_type_t flags)
     opal_snprintf_jobid = orte_util_snprintf_jobid;
     opal_convert_string_to_jobid = _convert_string_to_jobid;
 
-    /* Get the flag about donau launch type */
-    donau_launch_exec = getenv("OMPI_MCA_plm_rsh_agent");
-    if (NULL != donau_launch_exec && NULL != (strstr(donau_launch_exec, "drun"))) {
-        orte_donau_launch_type = 1;
-    }
-
     OPAL_TIMING_ENV_NEXT(tmng, "initializations");
 
     /* initialize the opal layer */

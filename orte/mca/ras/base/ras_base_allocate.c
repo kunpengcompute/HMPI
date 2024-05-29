@@ -23,6 +23,7 @@
 
 #include "orte_config.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 #include "orte/constants.h"
@@ -102,6 +103,41 @@ void orte_ras_base_display_alloc(void)
     }
     free(tmp);
 }
+
+static void get_alloc(char *alloc_path, opal_list_t *nodes)
+{
+    orte_node_t *node = NULL;
+    FILE *fp;
+    fp = fopen(alloc_path, "r");
+    if (NULL == fp) {
+        return ;
+    }
+    char *line = NULL;
+    size_t len = 0;
+    ssize_t read;
+    while ((read = getline(&line, &len, fp)) != -1) {
+        char hostname[DONAU_MAX_NODENAME_LENGTH] = {0};
+        int num_kernels = 0;
+        int slots = 0;
+        if (sscanf(line, "%s %d %d", hostname, &num_kernels, &slots) != 3) {
+            opal_output_verbose(10, orte_ras_base_framework.framework_output,
+                                "ras/donau: Get the wrong num of params in CCS_ALLOC_FILE");
+            break;
+        }
+
+        node = OBJ_NEW(orte_node_t);
+        node->name = strdup(hostname);
+        node->state = ORTE_NODE_STATE_UP;
+        node->slots_inuse = 0;
+        node->slots_max = 0;
+        node->slots = slots;
+        opal_list_append(nodes, &node->super);
+    }
+    free(line);
+    fclose(fp);
+    return ;
+}
+
 
 /*
  * Function for selecting one component from all those that are
@@ -196,6 +232,10 @@ void orte_ras_base_allocate(int fd, short args, void *cbdata)
             OBJ_RELEASE(caddy);
             return;
         }
+    }
+    char *alloc_path = NULL;
+    if (NULL != (alloc_path = getenv("CCS_ALLOC_FILE")) && 0 == orte_donau_launch_type) {
+        get_alloc(alloc_path, &nodes);
     }
     /* If something came back, save it and we are done */
     if (!opal_list_is_empty(&nodes)) {

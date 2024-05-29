@@ -367,7 +367,7 @@ static void launch_daemons(int fd, short args, void *cbdata)
         /* Check for already set cur_prefix_dir -- if different,
            complain */
         if (NULL != app_prefix_dir) {
-            if (NULL != app_prefix_dir &&
+            if (NULL != cur_prefix &&
                 0 != strcmp(cur_prefix, app_prefix_dir)) {
                 orte_show_help("help-plm-donau.txt", "multiple-prefixes",
                            true, cur_prefix, app_prefix_dir);
@@ -637,7 +637,8 @@ static int plm_donau_start_proc(int argc, char **argv, char **env,
 
         /* get the drun process out of orterun's process group so that
          * singnals sent from the shell (like those resulting from
-         * cntl-c) don't get sent to drun */
+         * cntl-c) don't get sent to drun 
+         */
         setpgid(0, 0);
         execve(exec_argv, argv, env);
 
@@ -648,7 +649,7 @@ static int plm_donau_start_proc(int argc, char **argv, char **env,
         exit(1);
     } else { /* parent */
         /* just in case, make sure that the drun process is not in our
-         * process group any more. Stevens says always do this on both
+         * process group anymore. Stevens says always do this on both
          * sides of the fork...
          */
         setpgid(drun_pid, drun_pid);
