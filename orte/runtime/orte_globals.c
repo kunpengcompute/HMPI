@@ -17,6 +17,8 @@
  * Copyright (c) 2014-2018 Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
  * Copyright (c) 2017      IBM Corporation.  All rights reserved.
+ * Copyright (c) 2024      Huawei Technologies Co., Ltd.
+ *                         All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -207,6 +209,13 @@ bool orte_report_silent_errors = false;
 
 /* enable PMIx-based "instant on" support */
 bool orte_enable_instant_on_support = false;
+
+/* flag about donau launch: 0 - dstart
+                            1 - drun */
+int orte_donau_launch_type = 0;
+
+/* exec path about drun/start from DONAU */
+char *donau_launch_exec = NULL;
 
 /* See comment in orte/tools/orterun/debuggers.c about this MCA
    param */

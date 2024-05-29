@@ -24,6 +24,8 @@ Copyright (c) 2017      Research Organization for Information Science
 Copyright (c) 2020      Google, LLC. All rights reserved.
 Copyright (c) 2019-2020 Triad National Security, LLC. All rights
                         reserved.
+Copyright (c) 2024      Huawei Technologies Co., Ltd. All rights
+                        reserved.
 
 $COPYRIGHT$
 
@@ -1307,6 +1309,9 @@ RUN-TIME SYSTEM SUPPORT
 
 --with-slurm
   Force the building of SLURM scheduler support.
+
+--with-donau
+  Force the building of DONAU scheduler support.
 
 --with-sge
   Specify to build support for the Oracle Grid Engine (OGE) resource

@@ -19,6 +19,8 @@
  *                         All rights reserved.
  * Copyright (c) 2018      FUJITSU LIMITED.  All rights reserved.
  * Copyright (c) 2021      IBM Corporation.  All rights reserved.
+ * Copyright (c) 2024      Huawei Technologies Co., Ltd.
+ *                         All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -164,6 +166,11 @@ static int rte_init(void)
                 /* we were direct launched by ALPS */
                 orte_show_help_finalize();
                 orte_show_help("help-ess-base.txt", "alps-error", true);
+                return ORTE_ERR_SILENT;
+            } else if (0 == strcmp(envar, "DONAU")) {
+                /* we were direct launched by DONAU */
+                orte_show_help_finalize();
+                orte_show_help("help-ess-base.txt", "donau-error", true);
                 return ORTE_ERR_SILENT;
             }
         }
