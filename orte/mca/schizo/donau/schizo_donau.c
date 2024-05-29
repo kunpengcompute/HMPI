@@ -46,8 +46,6 @@ static bool myenvdefined = false;
 
 static orte_schizo_launch_environ_t check_launch_environment(void)
 {
-    int i;
-
     if (myenvdefined) {
         return myenv;
     }
@@ -83,7 +81,7 @@ static orte_schizo_launch_environ_t check_launch_environment(void)
 
     /* we are in an allocation, but were we direct launched
      * or are we a singleton? */
-    char *donau_step_id = getenv("CCS_STEP_ID");
+    char *donau_step_id = getenv("CCS_DRUN_STEP_ID");
     if (NULL == donau_step_id || 0 == strlen(donau_step_id)) {
         /* not in a job step - ensure we select the
          * correct things */
@@ -108,7 +106,7 @@ static orte_schizo_launch_environ_t check_launch_environment(void)
       opal_output_verbose(1, orte_schizo_base_framework.framework_output,
                           "schizo:donau DECLARED AS %s", orte_schizo_base_print_env(myenv));
     if (NULL != pushed_envs) {
-        for (i=0; NULL != pushed_envs[i]; i++) {
+        for (int i = 0; NULL != pushed_envs[i]; i++) {
             opal_setenv(pushed_envs[i], pushed_vals[i], true, &environ);
         }
     }
@@ -124,10 +122,8 @@ static int get_remaining_time(uint32_t *timeleft)
 }
 static void finalize(void)
 {
-    int i;
-
     if (NULL != pushed_envs) {
-        for (i=0; NULL != pushed_envs[i]; i++) {
+        for (int i = 0; NULL != pushed_envs[i]; i++) {
             opal_unsetenv(pushed_envs[i], &environ);
         }
         opal_argv_free(pushed_envs);

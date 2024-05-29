@@ -149,6 +149,10 @@ ORTE_DECLSPEC extern int orte_clean_output;
 /* define a default error return code for ORTE */
 #define ORTE_ERROR_DEFAULT_EXIT_CODE    1
 
+/* define the default length of nodename and nodelist about donau */
+#define DONAU_MAX_NODENAME_LENGTH 63
+#define DONAU_MAX_NODELIST_LENGTH 36000
+
 /**
  * Define a macro for updating the orte_exit_status
  * The macro provides a convenient way of doing this

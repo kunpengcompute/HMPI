@@ -2,9 +2,9 @@
  * Copyright (c) 2024      Huawei Technologies Co., Ltd.
  *                         All rights reserved.
  * $COPYRIGHT$
- * 
+ *
  * Additional copyrights may follow
- * 
+ *
  * $HEADER$
  */
 
@@ -43,7 +43,7 @@ orte_ras_donau_component_t mca_ras_donau_component = {
             /* Component name and version */
             .mca_component_name = "donau",
             MCA_BASE_MAKE_VERSION(component, ORTE_MAJOR_VERSION, ORTE_MINOR_VERSION,
-                                ORTE_RELEASE_VERSION),
+                                    ORTE_RELEASE_VERSION),
 
             /* Component open and close functions */
             .mca_open_component = ras_donau_open,
@@ -85,16 +85,16 @@ static int ras_donau_close(void)
 static int orte_ras_donau_component_query(mca_base_module_t **module, int *priority)
 {
     /* check if donau is running here */
-   char *donau_job_id = getenv("CCS_JOB_ID");
-   if (NULL == donau_job_id || 0 == strlen(donau_job_id) || 0 == orte_donau_launch_type) {
+    char *donau_job_id = getenv("CCS_JOB_ID");
+    if (NULL == donau_job_id || 0 == strlen(donau_job_id) || 0 == orte_donau_launch_type) {
         /* disqualify ourselves */
         *priority = 0;
         *module = NULL;
         return ORTE_ERROR;
     }
 
-    OPAL_OUTPUT_VERBOSE((2, orte_base_framework.framework_output,
-                         "%s ras:slurm: available for selection",
+    OPAL_OUTPUT_VERBOSE((2, orte_ras_base_framework.framework_output,
+                         "%s ras:donau: available for selection",
                          ORTE_NAME_PRINT(ORTE_PROC_MY_NAME)));
     /* since only one RM can exist on a cluster, just set
      * my priority to something - the other components won't
@@ -102,5 +102,5 @@ static int orte_ras_donau_component_query(mca_base_module_t **module, int *prior
      */
     *priority = mca_ras_donau_component.param_priority;
     *module = (mca_base_module_t *)&orte_ras_donau_module;
-    return ORTE_SUCCESS;   
+    return ORTE_SUCCESS;
 }

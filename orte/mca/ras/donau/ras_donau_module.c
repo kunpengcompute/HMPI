@@ -45,8 +45,6 @@ static int orte_ras_donau_finalize(void);
 static int donau_get_alloc(char *alloc_path, opal_list_t *nodes);
 static void donau_get_affinity(char *affinity_path, char *affinity_file);
 
-#define DONAU_FILE_MAX_LINE_LENGTH 128
-#define DONAU_FILE_MAX_SIZE 1024
 /*
  * RAS donau module
  */
@@ -70,10 +68,12 @@ static int donau_get_alloc(char *alloc_path, opal_list_t *nodes)
     size_t len = 0;
     ssize_t read;
     while ((read = getline(&line, &len, fp)) != -1) {
-        char hostname[DONAU_FILE_MAX_LINE_LENGTH] = {0};
+        char hostname[DONAU_MAX_NODENAME_LENGTH] = {0};
         int num_kernels = 0;
         int slots = 0;
         if (sscanf(line, "%s %d %d", hostname, &num_kernels, &slots) != 3) {
+            opal_output_verbose(10, orte_ras_base_framework.framework_output,
+                                "ras/donau: Get the wrong num of params in CCS_ALLOC_FILE");
             break;
         }
 
@@ -98,20 +98,24 @@ static void donau_get_affinity(char *affinity_path, char *affinity_file)
     if (NULL == fp) {
         return ;
     }
-    char input[DONAU_FILE_MAX_LINE_LENGTH];
-
-    while (fgets(input, sizeof(input), fp)) {
-        char *rank_ID = strtok(input, " \t");
-        char *hostname = strtok(NULL, " \t");
-        char *physical_index = strtok(NULL, " \t");
-        char *logical_index = strtok(NULL, " \t");
-
-        if (NULL == rank_ID || NULL == hostname || NULL == logical_index) {
-            continue;
+    char *line = NULL;
+    size_t len = 0;
+    ssize_t read;
+    while ((read = getline(&line, &len, fp)) != -1) {
+        int rank_ID = -1;
+        char hostname[DONAU_MAX_NODENAME_LENGTH] = {0};
+        char physical_index[DONAU_MAX_NODENAME_LENGTH] = {0};
+        char logical_index[DONAU_MAX_NODENAME_LENGTH] = {0};
+        if (sscanf(line, "%d %s %s %s", &rank_ID, hostname, physical_index, logical_index) != 4) {
+            opal_output_verbose(10, orte_ras_base_framework.framework_output,
+                                "ras/donau: Get the wrong num of params in CCS_COSCHED_MPI_AFFINITY_FILE");
+            break;
         }
-        snprintf(affinity_file + strlen(affinity_file), DONAU_FILE_MAX_SIZE - strlen(affinity_file),
-                 "rank %s=%s slot=%s\n", rank_ID, hostname, logical_index);
+
+        snprintf(affinity_file + strlen(affinity_file), DONAU_MAX_NODELIST_LENGTH - strlen(affinity_file),
+                 "rank %d=%s slot=%s\n", rank_ID, hostname, logical_index);
     }
+    free(line);
     fclose(fp);
     return;
 }
@@ -126,7 +130,8 @@ static int orte_ras_donau_allocate(orte_job_t *jdata, opal_list_t *nodes) {
 
     /* get the list of allocated nodes */
     alloc_path = getenv("CCS_ALLOC_FILE");
-    if ((num_nodes = donau_get_alloc(alloc_path, nodes)) <= 0) {
+    if (NULL == alloc_path || 0 == strlen(alloc_path) ||
+       ((num_nodes = donau_get_alloc(alloc_path, nodes))) <= 0) {
         orte_show_help("help-ras-donau.txt", "nodelist-failed", true);
         return ORTE_ERR_NOT_AVAILABLE;
     }

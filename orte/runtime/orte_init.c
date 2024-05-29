@@ -158,7 +158,6 @@ int orte_init(int* pargc, char*** pargv, orte_proc_type_t flags)
 
     /* Get the flag about donau launch type */
     donau_launch_exec = getenv("OMPI_MCA_plm_rsh_agent");
-
     if (NULL != donau_launch_exec && NULL != (strstr(donau_launch_exec, "drun"))) {
         orte_donau_launch_type = 1;
     }

@@ -11,7 +11,7 @@
  * semantics. Since linkers generally pull in symbols by object
  * files, keeping these symbols as the only symbols in this file
  * prevents utility programs such as "ompi_info" from having to import
- * entire component just to query their version and parameters.
+ * entire components just to query their version and parameters.
  */
 
 #include "opal/class/opal_object.h"
@@ -21,6 +21,7 @@
 #include "orte/mca/oob/base/base.h"
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 #include <sys/types.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -65,8 +66,7 @@
 #include "orte/mca/plm/plm.h"
 #include "orte/mca/plm/base/plm_private.h"
 #include "plm_donau.h"
-#define DONAU_MAX_NODELIST_LENGTH 128
-#define DONAU_MAX_NODENAME_LENGTH 1024
+
 /*
  * Local functions
  */
@@ -75,7 +75,6 @@ static int plm_donau_launch_job(orte_job_t *jdata);
 static int plm_donau_terminate_orteds(void);
 static int plm_donau_signal_job(orte_jobid_t jobid, int32_t signal);
 static int plm_donau_finalize(void);
-
 static int plm_donau_start_proc(int argc, char **argv, char **env,
                                 char *prefix);
 
@@ -97,10 +96,14 @@ orte_plm_base_module_1_0_0_t orte_plm_donau_module = {
 /*
  * Local variables
  */
+#define MAX_NODE_COUNT (DONAU_MAX_NODELIST_LENGTH / (DONAU_MAX_NODELIST_LENGTH + 1))
 static pid_t primary_drun_pid = 0;
 static bool primary_pid_set = false;
 static void launch_daemons(int fd, short args, void *cbdata);
 static char *donau_nodelist_simp(char *nodelist);
+static int donau_compare(const void *a, const void *b);
+static char *donau_sort_nodes(char* nodes);
+static char *donau_merge_nodes(char *nodelist);
 /*
  * Init the module
  */
@@ -172,7 +175,7 @@ static void launch_daemons(int fd, short args, void *cbdata)
     char **nodelist_argv;
     char *name_string;
     char **custom_strings;
-    int num_args, i;
+    int num_args;
     char *cur_prefix;
     int proc_vpid_index;
     bool failed_launch = true;
@@ -181,7 +184,7 @@ static void launch_daemons(int fd, short args, void *cbdata)
 
     ORTE_ACQUIRE_OBJECT(state);
 
-    OPAL_OUTPUT_VERBOSE((1, orte_plm_base_framework.framework_oupput,
+    OPAL_OUTPUT_VERBOSE((1, orte_plm_base_framework.framework_output,
                          "%s plm:donau: LAUNCH DAEMONS CALLED",
                          ORTE_NAME_PRINT(ORTE_PROC_MY_NAME)));
 
@@ -220,7 +223,6 @@ static void launch_daemons(int fd, short args, void *cbdata)
                          "%s plm:donau: launching vm",
                          ORTE_NAME_PRINT(ORTE_PROC_MY_NAME)));
 
-
     /* get the map for the job */
     if (NULL == (map = daemons->map)) {
         ORTE_ERROR_LOG(ORTE_ERR_NOT_FOUND);
@@ -233,7 +235,7 @@ static void launch_daemons(int fd, short args, void *cbdata)
          * will trigger the daemons_reported event and cause the
          * job to move the following step
          */
-        OPAL_OUTPUT_VERBOSE((2, orte_plm_base_framework.framework_output,
+        OPAL_OUTPUT_VERBOSE((1, orte_plm_base_framework.framework_output,
                              "%s plm:donau: no new daemons to launch",
                              ORTE_NAME_PRINT(ORTE_PROC_MY_NAME)));
         state->jdata->state = ORTE_JOB_STATE_DAEMONS_LAUNCHED;
@@ -257,23 +259,11 @@ static void launch_daemons(int fd, short args, void *cbdata)
     /* add the drun command */
     opal_argv_append(&argc, &argv, donau_launch_exec);
 
-#if DONAU_CRAY_ENV
-    /*
-     * If in a DONAU/Cray env. make sure that Cray PMI is not pulled in,
-     * neither as a constructor run when orteds start, nor selected
-     * when pmix components are registered
-     */
-
-    opal_setenv("PMI_NO_PREINITIALIZE", "1", false, &orte_launch_environ);
-    opal_setenv("PMI_NO_FORK", "1", false, &orte_launch_environ);
-    opal_setenv("PMI_NO_USE_CRAY_PMI", "1", false, &orte_launch_environ);
-#endif
-
     /* Append user defined arguments to drun */
     if (NULL != mca_plm_donau_component.custom_args) {
         custom_strings = opal_argv_split(mca_plm_donau_component.custom_args, ' ');
         num_args = opal_argv_count(custom_strings);
-        for (i = 0; i < num_args; ++i) {
+        for (int i = 0; i < num_args; ++i) {
             opal_argv_append(&argc, &argv, custom_strings[i]);
         }
         opal_argv_free(custom_strings);
@@ -286,7 +276,7 @@ static void launch_daemons(int fd, short args, void *cbdata)
     opal_argv_append_nosize(&nodelist_argv, hnp_node->name);
 
     for (nnode = 0; nnode < map->nodes->size; nnode++) {
-        if (NULL == (node = (orte_node_t*)opal_pointer_array_get_item(map->nodes, nnode))){
+        if (NULL == (node = (orte_node_t*)opal_pointer_array_get_item(map->nodes, nnode))) {
             continue;
         }
         /* if the daemon already exists on this node, then
@@ -315,7 +305,11 @@ static void launch_daemons(int fd, short args, void *cbdata)
 
     asprintf(&tmp, "-nl");
     opal_argv_append(&argc, &argv, tmp);
-    asprintf(&tmp, "%s", nodelist_flat);
+    asprintf(&tmp, "%s", nodelist_simp);
+    opal_argv_append(&argc, &argv, tmp);
+    asprintf(&tmp, "-ao");
+    opal_argv_append(&argc, &argv, tmp);
+    asprintf(&tmp, "%s", hnp_node->name);
     opal_argv_append(&argc, &argv, tmp);
     asprintf(&tmp, "-rpn");
     opal_argv_append(&argc, &argv, tmp);
@@ -324,9 +318,10 @@ static void launch_daemons(int fd, short args, void *cbdata)
     free(tmp);
 
     OPAL_OUTPUT_VERBOSE((2, orte_plm_base_framework.framework_output,
-                             "%s plm:donau: launching on nodes %s",
-                             ORTE_NAME_PRINT(ORTE_PROC_MY_NAME), nodelist_flat));
+                         "%s plm:donau: launching on nodes %s",
+                         ORTE_NAME_PRINT(ORTE_PROC_MY_NAME), nodelist_simp));
     free(nodelist_simp);
+    free(nodelist_flat);
     /*
      * ORTED OPTIONS
      */
@@ -375,7 +370,7 @@ static void launch_daemons(int fd, short args, void *cbdata)
             if (NULL != app_prefix_dir &&
                 0 != strcmp(cur_prefix, app_prefix_dir)) {
                 orte_show_help("help-plm-donau.txt", "multiple-prefixes",
-                            true, cur_prefix, app_prefix_dir);
+                           true, cur_prefix, app_prefix_dir);
                 goto cleanup;
             }
 
@@ -431,7 +426,7 @@ cleanup:
         opal_argv_free(env);
     }
     if (NULL != jobid_string) {
-        opal_argv_free(jobid_string);
+        free(jobid_string);
     }
     /* cleanup the caddy */
     OBJ_RELEASE(state);
@@ -536,7 +531,6 @@ static void drun_wait_cb(int sd, short fd, void *cbdata)
 
     /* done with this dummy */
     OBJ_RELEASE(t2);
-
 }
 
 static int plm_donau_start_proc(int argc, char **argv, char **env,
@@ -553,7 +547,6 @@ static int plm_donau_start_proc(int argc, char **argv, char **env,
     }
 
     drun_pid = fork();
-
     if (-1 == drun_pid) {
         ORTE_ERROR_LOG(ORTE_ERR_SYS_LIMITS_CHILDREN);
         free(exec_argv);
@@ -575,12 +568,11 @@ static int plm_donau_start_proc(int argc, char **argv, char **env,
     /* setup the waitpid so we can find out if drun succeeds! */
     orte_wait_cb(dummy, drun_wait_cb, orte_event_base, NULL);
 
-
     if (0 == drun_pid) { /* child */
         char *bin_base = NULL;
         char *lib_base = NULL;
 
-        /* Figure out the basenames for the libdir and bindir.  There
+        /* Figure out the basenames for the libdir and bindir. There
          * is a lengthy comment about this in plm_rsh_module.c
          * explaining all the rationale for how / why we're doing
          * this.
@@ -592,7 +584,8 @@ static int plm_donau_start_proc(int argc, char **argv, char **env,
          * LD_LIBRARY_PATH environment variables.
          */
         if (NULL != prefix) {
-            char *oldenv, *newenv;
+            char *oldenv;
+            char *newenv;
 
             /* Reset PATH */
             oldenv = getenv("PATH");
@@ -627,7 +620,7 @@ static int plm_donau_start_proc(int argc, char **argv, char **env,
         if (fd >= 0) {
             dup2(fd, 0);
             /* When not in debug mode and --debug-daemons was not passed,
-             * tie sedout/stderr to dev null so we don't see messages from orted
+             * tie stdout/stderr to dev null so we don't see messages from orted
              * EXCEPT if the user has requested that we leave sessions attached
              */
             if (0 > opal_output_get_verbosity(orte_plm_base_framework.framework_output) &&
@@ -643,20 +636,21 @@ static int plm_donau_start_proc(int argc, char **argv, char **env,
         }
 
         /* get the drun process out of orterun's process group so that
-           singnals sent from the shell (like those resulting from
-           cntl-c) don't get sent to drun */
+         * singnals sent from the shell (like those resulting from
+         * cntl-c) don't get sent to drun */
         setpgid(0, 0);
         execve(exec_argv, argv, env);
 
         opal_output(0, "plm:donau:start_proc: exec failed");
         /* don't return - need to exit - returning would be bad -
-         * we're not in the calling process anymore 
+         * we're not in the calling process anymore
          */
         exit(1);
     } else { /* parent */
         /* just in case, make sure that the drun process is not in our
          * process group any more. Stevens says always do this on both
-         * sides of the fork... */
+         * sides of the fork...
+         */
         setpgid(drun_pid, drun_pid);
 
         free(exec_argv);
@@ -667,37 +661,92 @@ static int plm_donau_start_proc(int argc, char **argv, char **env,
 
 static char *donau_nodelist_simp(char *nodelist)
 {
+    char *sortedNodes = donau_sort_nodes(nodelist);
+    char *mergedNodes = donau_merge_nodes(sortedNodes);
+    free(sortedNodes);
+    return mergedNodes;
+}
+
+static int donau_compare(const void *a, const void *b)
+{
+    return strcmp(*(const char **)a, *(const char **)b);
+}
+
+static char *donau_sort_nodes(char* nodes)
+{
+    char* nodeArray[MAX_NODE_COUNT];
+    char* sortNodes = malloc(DONAU_MAX_NODELIST_LENGTH + 1);
+    int node_idx = 0;
+
+    nodeArray[node_idx] = strtok(nodes, ",");
+    while (nodeArray[node_idx] != NULL) {
+        if (strlen(nodeArray[node_idx]) > DONAU_MAX_NODENAME_LENGTH) {
+            opal_output(0, "Error: Node name length exceeds limit.");
+            free(sortedNodes);
+            return NULL;
+        }
+        nodeArray[++node_idx] = strtok(NULL, ",");
+    }
+
+    qsort(nodeArray, node_idx, sizeof((const char*), donau_compare));
+
+    strcpy(sortedNodes, nodeArray[0]);
+    for (int j = 1; j < node_idx; j++) {
+        strcat(sortedNodes, ",");
+        strcat(sortedNodes, nodeArray[j]);
+    }
+
+    return sortedNodes;
+}
+
+static char *donau_merge_nodes(char *nodelist)
+{
     char* result = (char*)malloc(DONAU_MAX_NODELIST_LENGTH * sizeof(char));
     result[0] = '\0';
-    char *nodelist_bak = strdup(nodelsit);
-    char* token = strtok(nodelist);
-    char prefix[DONAU_MAX_NODENAME_LENGTH];
-    int start = -1, end = -1;
-    while (token != NULL)
-    {
-        char temp_prefix[DONAU_MAX_NODENAME_LENGTH];
+    char *nodelist_bak = strdup(nodelist);
+    char* token = strtok(nodelist_bak, ",");
+    char prefix[DONAU_MAX_NODENAME_LENGTH] = {0};
+    int start = -1;
+    int end = -1;
+    while (token != NULL) {
+        char temp_prefix[DONAU_MAX_NODENAME_LENGTH] = {0};
         int num;
-        sscanf(token, "%[^0-9]%d", temp_prefix, &num);
+        char *p = token + strlen(token) - 1;
+        while (p >= token && isdigit(*p)) {
+            --p;
+        }
+        strncpy(temp_prefix, token, p - token + 1);
+        temp_prefix[p - token + 1] = '\0';
+        num = atoi(p + 1);
         if (strcmp(temp_prefix, prefix) != 0) {
             if (start != -1) {
-                if (start == end) sprintf(result + strlen(result), "%d] ", start);
-                else sprintf(result + strlen(result), "%d-%d] ", start, end);
+                if (start == end) {
+                    sprintf(result + strlen(result), "%d] ", start);
+                } else {
+                    sprintf(result + strlen(result), "%d-%d] ", start, end);
+                }
             } 
             strcpy(prefix, temp_prefix);
             sprintf(result + strlen(result), "%s[", prefix);
             start = end = num;
         } else {
-                if (num == end + 1) end = num;
-                else {
-                    if (start == end) sprintf(result + strlen(result), "%d,", start);
-                    else sprintf(result + strlen(result), "%d-%d", start, end);
+                if (num == end + 1) {
+                    end = num;
+                } else {
+                    if (start == end) {
+                        sprintf(result + strlen(result), "%d,", start);
+                    } else {
+                        sprintf(result + strlen(result), "%d-%d", start, end);
+                    }
                     start = end = num;
                 }
             }
         token = strtok(NULL, ",");
     }
-    if (start == end) sprintf(result + strlen(result), "%d]\n", start);
-    else sprintf(result + strlen(result), "%d-%d]\n", start, end);
-
+    if (start == end) {
+        sprintf(result + strlen(result), "%d]\n", start);
+    } else {
+        sprintf(result + strlen(result), "%d-%d]\n", start, end);
+    }
     return result;
 }
