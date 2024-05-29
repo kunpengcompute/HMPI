@@ -20,6 +20,8 @@
  * Copyright (c) 2017-2021 IBM Corporation.  All rights reserved.
  * Copyright (c) 2021      Huawei Technologies Co., Ltd.
  *                         All rights reserved.
+ * Copyright (c) 2024      Huawei Technologies Co., Ltd.
+ *                         All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow

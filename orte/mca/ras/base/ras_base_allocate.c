@@ -14,6 +14,8 @@
  * Copyright (c) 2014-2018 Intel, Inc. All rights reserved.
  * Copyright (c) 2018      Research Organization for Information Science
  *                         and Technology (RIST). All rights reserved.
+ * Copyright (c) 2024      Huawei Technologies Co., Ltd.
+ *                         All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
