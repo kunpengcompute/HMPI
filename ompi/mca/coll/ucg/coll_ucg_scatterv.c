@@ -177,7 +177,7 @@ fallback:
     UCG_DEBUG("fallback iscatterv");
     return ucg_module->previous_iscatterv(sbuf, scounts, disps, sdtype, rbuf,
                                           rcount, rdtype, root, comm, request,
-                                          ucg_module->previous_scatterv_module);
+                                          ucg_module->previous_iscatterv_module);
 }
 
 int mca_coll_ucg_iscatterv_cache(const void *sbuf, const int *scounts, const int *disps,
@@ -225,7 +225,7 @@ fallback:
     UCG_DEBUG("fallback iscatterv");
     return ucg_module->previous_iscatterv(sbuf, scounts, disps, sdtype, rbuf,
                                           rcount, rdtype, root, comm, request,
-                                          ucg_module->previous_scatterv_module);
+                                          ucg_module->previous_iscatterv_module);
 }
 
 int mca_coll_ucg_scatterv_init(const void *sbuf, const int *scounts, const int *disps,

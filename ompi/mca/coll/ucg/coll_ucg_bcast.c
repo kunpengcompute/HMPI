@@ -153,7 +153,7 @@ int mca_coll_ucg_ibcast(void *buff, int count, MPI_Datatype datatype, int root,
 fallback:
     UCG_DEBUG("fallback ibcast");
     return ucg_module->previous_ibcast(buff, count, datatype, root, comm,
-                                       request, ucg_module->previous_bcast_module);
+                                       request, ucg_module->previous_ibcast_module);
 }
 
 int mca_coll_ucg_ibcast_cache(void *buffer, int count, MPI_Datatype datatype, int root,
@@ -194,7 +194,7 @@ int mca_coll_ucg_ibcast_cache(void *buffer, int count, MPI_Datatype datatype, in
 fallback:
     UCG_DEBUG("fallback ibcast");
     return ucg_module->previous_ibcast(buffer, count, datatype, root, comm,
-                                       request, ucg_module->previous_bcast_module);
+                                       request, ucg_module->previous_ibcast_module);
 }
 
 int mca_coll_ucg_bcast_init(void *buffer, int count, MPI_Datatype datatype, int root,

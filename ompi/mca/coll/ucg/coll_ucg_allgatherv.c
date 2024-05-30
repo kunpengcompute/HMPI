@@ -174,7 +174,7 @@ fallback:
     UCG_DEBUG("fallback iallgatherv");
     return ucg_module->previous_iallgatherv(sbuf, scount, sdtype, rbuf, rcounts,
                                             disps, rdtype, comm, request,
-                                            ucg_module->previous_allgatherv_module);
+                                            ucg_module->previous_iallgatherv_module);
 }
 
 int mca_coll_ucg_iallgatherv_cache(const void *sbuf, int scount, ompi_datatype_t *sdtype,
@@ -220,7 +220,7 @@ fallback:
     UCG_DEBUG("fallback iallgatherv");
     return ucg_module->previous_iallgatherv(sbuf, scount, sdtype, rbuf, rcounts,
                                             disps, rdtype, comm, request,
-                                            ucg_module->previous_allgatherv_module);
+                                            ucg_module->previous_iallgatherv_module);
 }
 
 int mca_coll_ucg_allgatherv_init(const void *sbuf, int scount, ompi_datatype_t *sdtype,

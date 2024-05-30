@@ -179,7 +179,7 @@ fallback:
     return ucg_module->previous_ialltoallv(sbuf, scounts, sdispls, sdtype,
                                            rbuf, rcounts, rdispls, rdtype,
                                            comm, request,
-                                           ucg_module->previous_alltoallv_module);
+                                           ucg_module->previous_ialltoallv_module);
 }
 
 int mca_coll_ucg_ialltoallv_cache(const void *sbuf, const int *scounts, const int *sdispls,
@@ -229,7 +229,7 @@ fallback:
     return ucg_module->previous_ialltoallv(sbuf, scounts, sdispls, sdtype,
                                            rbuf, rcounts, rdispls, rdtype,
                                            comm, request,
-                                           ucg_module->previous_alltoallv_module);
+                                           ucg_module->previous_ialltoallv_module);
 }
 
 int mca_coll_ucg_alltoallv_init(const void *sbuf, const int *scounts, const int *sdispls,

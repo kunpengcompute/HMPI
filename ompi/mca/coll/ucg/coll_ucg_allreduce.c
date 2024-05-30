@@ -159,7 +159,7 @@ int mca_coll_ucg_iallreduce(const void *sbuf, void *rbuf, int count,
 fallback:
     UCG_DEBUG("fallback iallreduce");
     return ucg_module->previous_iallreduce(sbuf, rbuf, count, datatype, op, comm,
-                                           request, ucg_module->previous_allreduce_module);
+                                           request, ucg_module->previous_iallreduce_module);
 }
 
 int mca_coll_ucg_iallreduce_cache(const void *sbuf, void *rbuf, int count,
@@ -202,7 +202,7 @@ int mca_coll_ucg_iallreduce_cache(const void *sbuf, void *rbuf, int count,
 fallback:
     UCG_DEBUG("fallback iallreduce");
     return ucg_module->previous_iallreduce(sbuf, rbuf, count, datatype, op, comm,
-                                           request, ucg_module->previous_allreduce_module);
+                                           request, ucg_module->previous_iallreduce_module);
 }
 
 int mca_coll_ucg_allreduce_init(const void *sbuf, void *rbuf, int count, ompi_datatype_t *datatype,

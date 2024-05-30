@@ -180,8 +180,8 @@ int mca_coll_ucg_igatherv(const void *sbuf, int sendcount,
 fallback:
     UCG_DEBUG("fallback igatherv");
     return ucg_module->previous_igatherv(sbuf, sendcount, sdtype, rbuf,
-                                         recvcounts, disps, rdtype, root, comm, request,
-                                         ucg_module->previous_gatherv_module);
+                                         disps, recvcounts, rdtype, root, comm, request,
+                                         ucg_module->previous_igatherv_module);
 }
 
 int mca_coll_ucg_igatherv_cache(const void *sbuf, int sendcount,
@@ -230,7 +230,7 @@ fallback:
     UCG_DEBUG("fallback igatherv");
     return ucg_module->previous_igatherv(sbuf, sendcount, sdtype, rbuf,
                                          recvcounts, disps, rdtype, root, comm, request,
-                                         ucg_module->previous_gatherv_module);
+                                         ucg_module->previous_igatherv_module);
 }
 
 int mca_coll_ucg_gatherv_init(const void *sbuf, int sendcount,
