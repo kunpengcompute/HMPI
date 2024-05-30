@@ -22,7 +22,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-#include <sys/types.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -54,7 +53,6 @@
 #include "orte/util/show_help.h"
 #include "orte/util/name_fns.h"
 #include "orte/util/threads.h"
-#include "orte/runtime/orte_globals.h"
 #include "orte/runtime/orte_wait.h"
 #include "orte/runtime/orte_quit.h"
 #include "orte/mca/errmgr/errmgr.h"
@@ -96,7 +94,7 @@ orte_plm_base_module_1_0_0_t orte_plm_donau_module = {
 /*
  * Local variables
  */
-#define MAX_NODE_COUNT (DONAU_MAX_NODELIST_LENGTH / (DONAU_MAX_NODELIST_LENGTH + 1))
+#define MAX_NODE_COUNT (DONAU_MAX_NODELIST_LENGTH / (DONAU_MAX_NODENAME_LENGTH + 1))
 static pid_t primary_drun_pid = 0;
 static bool primary_pid_set = false;
 static void launch_daemons(int fd, short args, void *cbdata);
@@ -636,8 +634,8 @@ static int plm_donau_start_proc(int argc, char **argv, char **env,
         }
 
         /* get the drun process out of orterun's process group so that
-         * singnals sent from the shell (like those resulting from
-         * cntl-c) don't get sent to drun 
+         * signals sent from the shell (like those resulting from
+         * cntl-c) don't get sent to drun
          */
         setpgid(0, 0);
         execve(exec_argv, argv, env);
@@ -692,7 +690,7 @@ static char *donau_sort_nodes(char* nodes)
         nodeArray[++node_idx] = strtok(NULL, ",");
     }
 
-    qsort(nodeArray, node_idx, sizeof((const char*), donau_compare));
+    qsort(nodeArray, node_idx, sizeof(const char*), donau_compare);
 
     strcpy(sortedNodes, nodeArray[0]);
     for (int j = 1; j < node_idx; j++) {
@@ -711,7 +709,7 @@ static char *donau_merge_nodes(char *nodelist)
     }
     result[0] = '\0';
     char *nodelist_bak = strdup(nodelist);
-    char* token = strtok(nodelist_bak, ",");
+    char *token = strtok(nodelist_bak, ",");
     char prefix[DONAU_MAX_NODENAME_LENGTH] = {0};
     int start = -1;
     int end = -1;
@@ -728,32 +726,35 @@ static char *donau_merge_nodes(char *nodelist)
         if (strcmp(temp_prefix, prefix) != 0) {
             if (start != -1) {
                 if (start == end) {
-                    sprintf(result + strlen(result), "%d] ", start);
+                    sprintf(result + strlen(result), "%d],", start);
                 } else {
-                    sprintf(result + strlen(result), "%d-%d] ", start, end);
+                    sprintf(result + strlen(result), "%d-%d],", start, end);
                 }
             } 
             strcpy(prefix, temp_prefix);
             sprintf(result + strlen(result), "%s[", prefix);
-            start = end = num;
+            start = num;
+            end = num;
         } else {
                 if (num == end + 1) {
+                    start = num;
                     end = num;
                 } else {
                     if (start == end) {
                         sprintf(result + strlen(result), "%d,", start);
                     } else {
-                        sprintf(result + strlen(result), "%d-%d", start, end);
+                        sprintf(result + strlen(result), "%d-%d,", start, end);
                     }
-                    start = end = num;
+                    start = num;
+                    end = num;
                 }
             }
         token = strtok(NULL, ",");
     }
     if (start == end) {
-        sprintf(result + strlen(result), "%d]\n", start);
+        sprintf(result + strlen(result), "%d]", start);
     } else {
-        sprintf(result + strlen(result), "%d-%d]\n", start, end);
+        sprintf(result + strlen(result), "%d-%d]", start, end);
     }
     return result;
 }

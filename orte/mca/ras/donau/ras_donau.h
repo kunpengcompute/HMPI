@@ -6,11 +6,11 @@
  * Additional copyrights may follow
  *
  * $HEADER$
- * 
+ *
  */
 /**
  * @file
- * 
+ *
  * Resource Allocation(DONAU)
  */
 #ifndef ORTE_RAS_DONAU_H

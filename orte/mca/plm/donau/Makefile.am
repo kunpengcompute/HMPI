@@ -2,9 +2,9 @@
 # Copyright (c) 2024      Huawei Technologies Co., Ltd.
 #                         All rights reserved.
 # $COPYRIGHT$
-# 
+#
 # Additional copyrights may follow
-# 
+#
 # $HEADER$
 #
 
@@ -14,7 +14,6 @@ sources = \
         plm_donau_module.c
 
 dist_ortedata_DATA = help-plm-donau.txt
-
 
 # Make the output library in this directory, and name it either
 # mca_<type>_<name>.la (for DSO builds) or libmca_<type>_<name>.la

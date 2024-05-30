@@ -11,7 +11,7 @@
 The DONAU process starter for Open MPI does not support multiple
 different --prefix options to mpirun. You can specify at most one
 unique value for the --prefix option (in any of the application
-contexts); it will be applied to all the appliation contexts of your
+contexts); it will be applied to all the application contexts of your
 parallel job.
 
 Put simply, you must have Open MPI installed in the same location on
@@ -52,6 +52,3 @@ and %s
 The DONAU process starter for OpenMPI was unable to locate a
 usable "drun" command in its path. Please check your path
 and try again.
-
-
-

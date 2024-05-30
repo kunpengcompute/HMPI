@@ -2,9 +2,9 @@
 # Copyright (c) 2024      Huawei Technologies Co., Ltd.
 #                         All rights reserved.
 # $COPYRIGHT$
-# 
+#
 # Additional copyrights may follow
-# 
+#
 # $HEADER$
 #
 

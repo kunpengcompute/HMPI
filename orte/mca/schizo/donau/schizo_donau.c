@@ -102,9 +102,9 @@ static orte_schizo_launch_environ_t check_launch_environment(void)
     opal_argv_append_nosize(&pushed_envs, OPAL_MCA_PREFIX"orte_externally_bound");
     opal_argv_append_nosize(&pushed_vals, "1");
 
-  setup:
-      opal_output_verbose(1, orte_schizo_base_framework.framework_output,
-                          "schizo:donau DECLARED AS %s", orte_schizo_base_print_env(myenv));
+setup:
+    opal_output_verbose(1, orte_schizo_base_framework.framework_output,
+                        "schizo:donau DECLARED AS %s", orte_schizo_base_print_env(myenv));
     if (NULL != pushed_envs) {
         for (int i = 0; NULL != pushed_envs[i]; i++) {
             opal_setenv(pushed_envs[i], pushed_vals[i], true, &environ);
@@ -120,6 +120,7 @@ static int get_remaining_time(uint32_t *timeleft)
 
     return ORTE_SUCCESS;
 }
+
 static void finalize(void)
 {
     if (NULL != pushed_envs) {

@@ -11,7 +11,7 @@
 sources = \
         schizo_donau_component.c \
         schizo_donau.h \
-        schizo_donau_module.c
+        schizo_donau.c
 
 # Make the output library in this directory, and name it either
 # mca_<type>_<name>.la (for DSO builds) or libmca_<type>_<name>.la
