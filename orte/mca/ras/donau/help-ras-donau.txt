@@ -1,0 +1,26 @@
+# -*- text -*-
+#
+# Copyright (c) 2024      Huawei Technologies Co., Ltd.
+#                         All rights reserved.
+# $COPYRIGHT$
+#
+# Additional copyrights may follow
+#
+# $HEADER$
+#
+# This is the US/English help file for Open MPI MCA error messages.
+#
+[nodelist-failed]
+While trying to determine what resources are available, DONAU failed when
+queried for a list of available nodes. This may indicate a problem with
+DONAU or your cluster.
+#
+[affinity-file-not-found]
+The affinity file provided in DONAU_AFFINITY_FILE could not be found:
+
+  File:  %s
+
+We cannot continue.
+
+
+

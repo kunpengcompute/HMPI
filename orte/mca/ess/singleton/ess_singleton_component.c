@@ -13,6 +13,8 @@
  * Copyright (c) 2015      Los Alamos National Security, LLC. All rights
  *                         reserved.
  * Copyright (c) 2016-2017 Intel, Inc. All rights reserved.
+ * Copyright (c) 2024      Huawei Technologies Co., Ltd.
+ *                         All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -156,8 +158,15 @@ static int component_query(mca_base_module_t **module, int *priority)
             *priority = 0;
             return ORTE_ERR_SILENT;
         }
+        /* see if we are under DONAU */
+        char *donau_job_id = getenv("CCS_JOB_ID");
+        if (NULL != donau_job_id && 0 != strlen(donau_job_id)) {
+            orte_show_help("help-ess-base.txt", "donau-error2", true);
+            *module = NULL;
+            *priority = 0;
+            return ORTE_ERR_SILENT;
+        }
     }
-
     /* okay, we want to be selected as we must be a singleton */
     *priority = 100;
     *module = (mca_base_module_t *)&orte_ess_singleton_module;

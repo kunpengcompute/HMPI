@@ -15,6 +15,8 @@
  * Copyright (c) 2014-2018 Intel, Inc. All rights reserved.
  * Copyright (c) 2015      Los Alamos National Security, LLC. All rights
  *                         reserved.
+ * Copyright (c) 2024      Huawei Technologies Co., Ltd.
+ *                         All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -106,8 +108,9 @@ static int orte_rmaps_rank_file_register(void)
 static int orte_rmaps_rank_file_open(void)
 {
     /* ensure we flag mapping by user */
+    char *donau_affinity_file = getenv("CCS_COSCHED_MPI_AFFINITY_FILE");
     if ((NULL != opal_hwloc_base_cpu_list && !OPAL_BIND_ORDERED_REQUESTED(opal_hwloc_binding_policy)) ||
-        NULL != orte_rankfile) {
+        NULL != orte_rankfile || (NULL != donau_affinity_file && 0 != strlen(donau_affinity_file))) {
         if (ORTE_MAPPING_GIVEN & ORTE_GET_MAPPING_DIRECTIVE(orte_rmaps_base.mapping)) {
             /* if a non-default mapping is already specified, then we
              * have an error

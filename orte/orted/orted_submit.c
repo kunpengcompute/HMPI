@@ -18,6 +18,10 @@
  * Copyright (c) 2015-2018 Research Organization for Information Science
  *                         and Technology (RIST). All rights reserved.
  * Copyright (c) 2017-2021 IBM Corporation.  All rights reserved.
+ * Copyright (c) 2021      Huawei Technologies Co., Ltd.
+ *                         All rights reserved.
+ * Copyright (c) 2024      Huawei Technologies Co., Ltd.
+ *                         All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -212,6 +216,10 @@ int orte_submit_init(int argc, char *argv[],
             0 == strncmp(argv[i], "--g"OPAL_MCA_CMD_LINE_ID, strlen("--g"OPAL_MCA_CMD_LINE_ID))) {
             (void) mca_base_var_env_name (argv[i+1], &param);
             opal_setenv(param, argv[i+2], true, &environ);
+            if (0 == strcmp(argv[i+1], "plm_rsh_agent") && (NULL != strstr(argv[i+2], "ssh") ||
+                NULL != strstr(argv[i+2], "dstart"))) {
+                orte_donau_launch_type = DONAU_SSH;
+            }
             free(param);
         } else if (0 == strcmp(argv[i], "-am") ||
                    0 == strcmp(argv[i], "--am")) {
@@ -224,6 +232,12 @@ int orte_submit_init(int argc, char *argv[],
             opal_setenv(param, argv[i+1], true, &environ);
             free(param);
         }
+    }
+    /* check if donau gives var about OMPI_MCA_plm_rsh_agent */
+    donau_launch_exec = getenv("OMPI_MCA_plm_rsh_agent");
+    if (NULL != donau_launch_exec && (NULL != strstr(donau_launch_exec, "ssh") ||
+        strstr(donau_launch_exec, "dstart"))) {
+        orte_donau_launch_type = DONAU_SSH;
     }
 
     /* init only the util portion of OPAL */
@@ -730,6 +744,7 @@ int orte_submit_job(char *argv[], int *index,
     orte_app_context_t *app, *dapp;
     trackr_t *trk;
     int argc;
+    int default_mapping_policy_flag = 0;
 
     /* bozo check - we don't allow recursive calls of submit */
     if (NULL != getenv("OMPI_UNIVERSE_SIZE")) {
@@ -848,6 +863,11 @@ int orte_submit_job(char *argv[], int *index,
         return ORTE_ERR_FATAL;
     }
 
+    if (NULL == orte_cmd_options.mapping_policy) {
+       orte_cmd_options.mapping_policy = strdup("socket");
+       default_mapping_policy_flag = 1;
+    }
+
     /* create the map object to communicate policies */
     jdata->map = OBJ_NEW(orte_job_map_t);
 
@@ -872,7 +892,12 @@ int orte_submit_job(char *argv[], int *index,
         /* define the ppr */
         (void)asprintf(&jdata->map->ppr, "%d:socket", orte_cmd_options.npersocket);
     }
-
+    
+    if (default_mapping_policy_flag) {
+        free(orte_cmd_options.mapping_policy);
+        orte_cmd_options.mapping_policy = NULL;
+        default_mapping_policy_flag = 0;
+    }
 
     /* if the user specified cpus/rank, set it */
     if (0 < orte_cmd_options.cpus_per_proc) {

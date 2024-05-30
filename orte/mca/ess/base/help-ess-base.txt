@@ -11,6 +11,8 @@
 # Copyright (c) 2004-2005 The Regents of the University of California.
 #                         All rights reserved.
 # Copyright (c) 2017-2018 Intel, Inc. All rights reserved.
+# Copyright (c) 2024      Huawei Technologies Co., Ltd.
+#                         All rights reserved.
 # $COPYRIGHT$
 #
 # Additional copyrights may follow
@@ -87,6 +89,22 @@ The application appears to have been direct launched using "aprun",
 but OMPI was not built with ALPS support. This usually happens
 when OMPI was not configured --with-alps and we weren't able
 to discover an ALPS installation in the usual places.
+
+Please configure as appropriate and try again.
+#
+[donau-error]
+The application appears to have been direct launched using "drun",
+but OMPI was not built with DONAU PMI support and therefore cannot
+execute. You must build Open MPI using --with-pmi pointing
+to the DONAU PMI library location.
+
+Please configure as appropriate and try again.
+#
+[donau-error2]
+The application appears to have been direct launched using "drun",
+but OMPI was not built with DONAU support. This usually happens
+when OMPI was not configured --with-donau and we weren't able
+to discover an DONAU installation in the usual places.
 
 Please configure as appropriate and try again.
 #

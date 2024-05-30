@@ -17,6 +17,8 @@
  * Copyright (c) 2017      IBM Corporation.  All rights reserved.
  * Copyright (c) 2017-2018 Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
+ * Copyright (c) 2024      Huawei Technologies Co., Ltd.
+ *                         All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -146,6 +148,10 @@ ORTE_DECLSPEC extern int orte_clean_output;
 
 /* define a default error return code for ORTE */
 #define ORTE_ERROR_DEFAULT_EXIT_CODE    1
+
+/* define the default length of nodename and nodelist about donau */
+#define DONAU_MAX_NODENAME_LENGTH 63
+#define DONAU_MAX_NODELIST_LENGTH 36000
 
 /**
  * Define a macro for updating the orte_exit_status
@@ -591,6 +597,16 @@ ORTE_DECLSPEC extern int orte_stack_trace_wait_timeout;
 /* enable PMIx-based "instant on" support */
 ORTE_DECLSPEC extern bool orte_enable_instant_on_support;
 
+/* flag about donau launch: DONAU_SSH - ssh/dstart
+ *                          DONAU_DRUN - drun(default) */
+ORTE_DECLSPEC extern int orte_donau_launch_type;
+enum {
+    DONAU_SSH = 0,
+    DONAU_DRUN = 1
+};
+
+/* exec path about drun/start from DONAU */
+ORTE_DECLSPEC extern char *donau_launch_exec;
 END_C_DECLS
 
 #endif /* ORTE_RUNTIME_ORTE_GLOBALS_H */

@@ -18,6 +18,8 @@
  * Copyright (c) 2015      Research Organization for Information Science
  *                         and Technology (RIST). All rights reserved.
  * Copyright (c) 2016      IBM Corporation.  All rights reserved.
+ * Copyright (c) 2024      Huawei Technologies Co., Ltd.
+ *                         All rights reserved.
  *
  * $COPYRIGHT$
  *
@@ -31,6 +33,7 @@
 #include "orte/types.h"
 
 #include <errno.h>
+#include <stdlib.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif  /* HAVE_UNISTD_H */
@@ -59,6 +62,7 @@ orte_rmaps_base_module_t orte_rmaps_rank_file_module = {
 
 
 static int orte_rmaps_rank_file_parse(const char *);
+static int orte_rmaps_donau_affinity_file_parse(const char *affinityfile);
 static char *orte_rmaps_rank_file_parse_string_or_int(void);
 static const char *orte_rmaps_rank_file_name_cur = NULL;
 char *orte_rmaps_rank_file_slot_list = NULL;
@@ -173,6 +177,13 @@ static int orte_rmaps_rf_map(orte_job_t *jdata)
             ORTE_ERROR_LOG(rc);
             goto error;
         }
+    } else if ((NULL != getenv("CCS_COSCHED_MPI_AFFINITY_FILE")) &&
+        (0 != strlen(getenv("CCS_COSCHED_MPI_AFFINITY_FILE")))) {
+            char *donau_affinity_path = getenv("CCS_COSCHED_MPI_AFFINITY_FILE");
+            if (ORTE_SUCCESS != (rc = orte_rmaps_donau_affinity_file_parse(donau_affinity_path))) {
+                ORTE_ERROR_LOG(rc);
+                goto error;
+            }
     }
 
     /* cycle through the app_contexts, mapping them sequentially */
@@ -381,6 +392,61 @@ static int orte_rmaps_rf_map(orte_job_t *jdata)
 
  error:
     OPAL_LIST_DESTRUCT(&node_list);
+
+    return rc;
+}
+
+static int orte_rmaps_donau_affinity_file_parse(const char *affinityfile)
+{
+    int rc = ORTE_SUCCESS;
+    orte_rmaps_rank_file_map_t *rfmap = NULL;
+    orte_node_t *hnp_node;
+    FILE *fp;
+
+    /* get the hnp node's info */
+    hnp_node = (orte_node_t*)(orte_node_pool->addr[0]);
+
+    fp = fopen(affinityfile, "r");
+    if (NULL == fp) {
+        return ORTE_ERROR;
+    }
+
+    char *line = NULL;
+    size_t len = 0;
+    ssize_t read;
+    while ((read = getline(&line, &len, fp)) != -1) {
+        int rank_ID = -1;
+        char hostname[DONAU_MAX_NODENAME_LENGTH] = {0};
+        char physical_index[DONAU_MAX_NODENAME_LENGTH] = {0};
+        char logical_index[DONAU_MAX_NODENAME_LENGTH] = {0};
+        if (sscanf(line, "%d %s %s %s", &rank_ID, hostname, physical_index, logical_index) != 4) {
+            opal_output_verbose(10, orte_rmaps_base_framework.framework_output,
+                                "rmaps/rank_file: Get the wrong num of params in CCS_COSCHED_MPI_AFFINITY_FILE");
+            break;
+        }
+        rfmap = OBJ_NEW(orte_rmaps_rank_file_map_t);
+        opal_pointer_array_set_item(&rankmap, rank_ID, rfmap);
+        num_ranks++;  // keep track of provided ranks;
+
+        /* check the rank item */
+        if (NULL == rfmap) {
+            orte_show_help("help-rmaps_rank-file.txt", "bad-syntax", true, affinityfile);
+            rc = ORTE_ERR_BAD_PARAM;
+            ORTE_ERROR_LOG(rc);
+            return rc;
+        }
+        /* check if this is the local node */
+        if (orte_ifislocal(hostname)) {
+            rfmap->node_name = strdup(hnp_node->name);
+        } else {
+            rfmap->node_name = strdup(hostname);
+        }
+        for (int i = 0; i < strlen(logical_index) && '\0' != logical_index[i]; i++) {
+            rfmap->slot_list[i] = logical_index[i];
+        }
+    }
+    free(line);
+    fclose(fp);
 
     return rc;
 }
