@@ -77,6 +77,12 @@ static int donau_get_alloc(char *alloc_path, opal_list_t *nodes)
         }
 
         node = OBJ_NEW(orte_node_t);
+        if (NULL == node) {
+            num_nodes = 0;
+            opal_output_verbose(10, orte_ras_base_framework.framework_output,
+                                "ras/donau: Failed when create obj of orte_node_t");
+            goto cleanup;
+        }
         node->name = strdup(hostname);
         node->state = ORTE_NODE_STATE_UP;
         node->slots_inuse = 0;
@@ -84,6 +90,13 @@ static int donau_get_alloc(char *alloc_path, opal_list_t *nodes)
         node->slots = slots;
         opal_list_append(nodes, &node->super);
         num_nodes++;
+    }
+    free(line);
+    fclose(fp);
+    return num_nodes;
+cleanup:
+    if (NULL != nodes) {
+        OPAL_LIST_RELEASE(nodes);
     }
     free(line);
     fclose(fp);

@@ -116,17 +116,7 @@ static int plm_donau_init(void)
      * to test the mappers), then we assign vpids at "launch"
      * so the mapper has something to work with
      */
-    if (orte_do_not_launch) {
-        orte_plm_globals.daemon_nodes_assigned_at_launch = true;
-    } else {
-        /* we do NOT assign daemons to nodes at launch - we will
-         * determine that mapping when the daemon
-         * calls back. This is required because donau does
-         * its own mapping of proc-to-node, and we cannot know
-         * in advance which daemon will wind up on which node
-         */
-        orte_plm_globals.daemon_nodes_assigned_at_launch = false;
-    }
+    orte_plm_globals.daemon_nodes_assigned_at_launch = orte_do_not_launch;
 
     /* point to our launch command */
     rc = orte_state.add_job_state(ORTE_JOB_STATE_LAUNCH_DAEMONS,
@@ -157,27 +147,26 @@ static int plm_donau_launch_job(orte_job_t *jdata)
 
 static void launch_daemons(int fd, short args, void *cbdata)
 {
-    orte_app_context_t *app;
-    orte_node_t *node;
+    orte_app_context_t *app = NULL;
+    orte_node_t *node = NULL;
     orte_std_cntr_t nnode;
-    orte_job_map_t *map;
-    char *jobid_string = NULL;
-    char *param;
+    orte_job_map_t *map = NULL;
+    char *param = NULL;
     char **argv = NULL;
     int argc;
     int rc;
-    char *tmp;
+    char *tmp = NULL;
     char **env = NULL;
-    char *nodelist_flat;
-    char *nodelist_simp;
-    char **nodelist_argv;
-    char *name_string;
-    char **custom_strings;
+    char *nodelist_flat = NULL;
+    char *nodelist_simp = NULL;
+    char **nodelist_argv = NULL;
+    char *name_string = NULL;
+    char **custom_strings = NULL;
     int num_args;
-    char *cur_prefix;
+    char *cur_prefix = NULL;
     int proc_vpid_index;
     bool failed_launch = true;
-    orte_job_t *daemons;
+    orte_job_t *daemons = NULL;
     orte_state_caddy_t *state = (orte_state_caddy_t*)cbdata;
 
     ORTE_ACQUIRE_OBJECT(state);
@@ -198,6 +187,10 @@ static void launch_daemons(int fd, short args, void *cbdata)
 
     /* start by setting up the virtual machine */
     daemons = orte_get_job_data_object(ORTE_PROC_MY_NAME->jobid);
+    if (NULL == daemons) {
+        ORTE_ERROR_LOG(ORTE_ERR_NOT_FOUND);
+        goto cleanup;
+    }
     if (ORTE_SUCCESS != (rc = orte_plm_base_setup_virtual_machine(state->jdata))) {
         ORTE_ERROR_LOG(rc);
         goto cleanup;
@@ -242,8 +235,6 @@ static void launch_daemons(int fd, short args, void *cbdata)
         return;
     }
 
-    /* need integer value for command line parameter */
-    asprintf(&jobid_string, "%lu", (unsigned long) daemons->jobid);
     /*
      * start building argv array
      */
@@ -273,7 +264,8 @@ static void launch_daemons(int fd, short args, void *cbdata)
     orte_node_t *hnp_node = (orte_node_t*)opal_pointer_array_get_item(orte_node_pool, 0);
     opal_argv_append_nosize(&nodelist_argv, hnp_node->name);
 
-    for (nnode = 0; nnode < map->nodes->size; nnode++) {
+    int node_size = map->nodes->size;
+    for (nnode = 0; nnode < node_size; nnode++) {
         if (NULL == (node = (orte_node_t*)opal_pointer_array_get_item(map->nodes, nnode))) {
             continue;
         }
@@ -298,19 +290,24 @@ static void launch_daemons(int fd, short args, void *cbdata)
     opal_argv_free(nodelist_argv);
 
     /* simplify nodelist for donau */
-    nodelist_simp = NULL;
+
     nodelist_simp = donau_nodelist_simp(nodelist_flat);
 
     asprintf(&tmp, "-nl");
     opal_argv_append(&argc, &argv, tmp);
+    free(tmp);
     asprintf(&tmp, "%s", nodelist_simp);
     opal_argv_append(&argc, &argv, tmp);
+    free(tmp);
     asprintf(&tmp, "-ao");
     opal_argv_append(&argc, &argv, tmp);
+    free(tmp);
     asprintf(&tmp, "%s", hnp_node->name);
     opal_argv_append(&argc, &argv, tmp);
+    free(tmp);
     asprintf(&tmp, "-rpn");
     opal_argv_append(&argc, &argv, tmp);
+    free(tmp);
     asprintf(&tmp, "1");
     opal_argv_append(&argc, &argv, tmp);
     free(tmp);
@@ -342,11 +339,16 @@ static void launch_daemons(int fd, short args, void *cbdata)
     argv[proc_vpid_index] = strdup(name_string);
     free(name_string);
 
-    char *param1;
+    char *param1 = NULL;
     orte_oob_base_get_addr(&param1);
+    if (param1 == NULL) {
+        opal_output(0, "plm_donau: unable to get param1 from orte_oob_base_get_addr");
+        goto cleanup;
+    }
     opal_argv_append(&argc, &argv, "-"OPAL_MCA_CMD_LINE_ID);
     opal_argv_append(&argc, &argv, "orte_parent_uri");
     opal_argv_append(&argc, &argv, param1);
+    free(param1);
     /* Copy the prefix-directory specified in the
      * corresponding add_context. If there are multiple,
      * different prefix's in the app context, complain (i.e., only
@@ -423,8 +425,8 @@ cleanup:
     if (NULL != env) {
         opal_argv_free(env);
     }
-    if (NULL != jobid_string) {
-        free(jobid_string);
+    if (NULL != cur_prefix) {
+        free(cur_prefix);
     }
     /* cleanup the caddy */
     OBJ_RELEASE(state);
@@ -582,8 +584,8 @@ static int plm_donau_start_proc(int argc, char **argv, char **env,
          * LD_LIBRARY_PATH environment variables.
          */
         if (NULL != prefix) {
-            char *oldenv;
-            char *newenv;
+            char *oldenv = NULL;
+            char *newenv = NULL;
 
             /* Reset PATH */
             oldenv = getenv("PATH");
@@ -693,7 +695,7 @@ static char *donau_sort_nodes(char* nodes)
     qsort(nodeArray, node_idx, sizeof(const char*), donau_compare);
 
     strcpy(sortedNodes, nodeArray[0]);
-    for (int j = 1; j < node_idx; j++) {
+    for(int j = 1; j < node_idx; j++) {
         strcat(sortedNodes, ",");
         strcat(sortedNodes, nodeArray[j]);
     }
@@ -730,25 +732,25 @@ static char *donau_merge_nodes(char *nodelist)
                 } else {
                     sprintf(result + strlen(result), "%d-%d],", start, end);
                 }
-            } 
+            }
             strcpy(prefix, temp_prefix);
             sprintf(result + strlen(result), "%s[", prefix);
             start = num;
             end = num;
         } else {
-                if (num == end + 1) {
-                    start = num;
-                    end = num;
+            if (num == end + 1) {
+                start = num;
+                end = num;
+            } else {
+                if (start == end) {
+                    sprintf(result + strlen(result), "%d,", start);
                 } else {
-                    if (start == end) {
-                        sprintf(result + strlen(result), "%d,", start);
-                    } else {
-                        sprintf(result + strlen(result), "%d-%d,", start, end);
-                    }
-                    start = num;
-                    end = num;
+                    sprintf(result + strlen(result), "%d-%d,", start, end);
                 }
+                start = num;
+                end = num;
             }
+        }
         token = strtok(NULL, ",");
     }
     if (start == end) {
@@ -756,5 +758,6 @@ static char *donau_merge_nodes(char *nodelist)
     } else {
         sprintf(result + strlen(result), "%d-%d]", start, end);
     }
+    free(nodelist_bak);
     return result;
 }
