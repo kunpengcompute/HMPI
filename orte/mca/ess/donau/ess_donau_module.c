@@ -36,7 +36,6 @@
 #include "orte/mca/ess/donau/ess_donau.h"
 
 static int donau_set_name(void);
-
 static int rte_init(void);
 static int rte_finalize(void);
 
@@ -58,7 +57,11 @@ static int rte_init(void)
         goto error;
     }
     /* Start by getting a unique name */
-    donau_set_name();
+    if (ORTE_SUCCESS != (ret = donau_set_name())) {
+        ORTE_ERROR_LOG(ret);
+        error = "donau_set_name";
+        goto error;
+    }
     /* if I am a daemon, complete my setup using the
      * default procedure
      */

@@ -112,7 +112,7 @@ static void get_alloc(char *alloc_path, opal_list_t *nodes)
     FILE *fp;
     fp = fopen(alloc_path, "r");
     if (NULL == fp) {
-        return ;
+        return;
     }
     char *line = NULL;
     size_t len = 0;
@@ -137,7 +137,7 @@ static void get_alloc(char *alloc_path, opal_list_t *nodes)
     }
     free(line);
     fclose(fp);
-    return ;
+    return;
 }
 
 
