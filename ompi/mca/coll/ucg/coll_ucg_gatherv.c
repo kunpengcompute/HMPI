@@ -180,7 +180,7 @@ int mca_coll_ucg_igatherv(const void *sbuf, int sendcount,
 fallback:
     UCG_DEBUG("fallback igatherv");
     return ucg_module->previous_igatherv(sbuf, sendcount, sdtype, rbuf,
-                                         disps, recvcounts, rdtype, root, comm, request,
+                                         recvcounts, disps, rdtype, root, comm, request,
                                          ucg_module->previous_igatherv_module);
 }
 

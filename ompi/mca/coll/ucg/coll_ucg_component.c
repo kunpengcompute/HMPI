@@ -1,6 +1,6 @@
 /* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil -*- */
 /*
- * Copyright (c) 2022-2023 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2022-2022 Huawei Technologies Co., Ltd.
  *                         All rights reserved.
  * COPYRIGHT$
  *

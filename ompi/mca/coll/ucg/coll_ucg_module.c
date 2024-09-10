@@ -1,6 +1,6 @@
 /* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil -*- */
 /*
- * Copyright (c) 2022-2023 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2022-2024 Huawei Technologies Co., Ltd.
  *                         All rights reserved.
  * COPYRIGHT$
  *
@@ -18,17 +18,17 @@
 #include "ompi/mca/pml/ucx/pml_ucx.h"
 #include "opal/util/argv.h"
 
-/* Ensure coll ucg can be dlopened if global var "ompi_pml_ucx" is not existed */
+/* Ensure coll ucg can be dlopened if global var "ompi_pml_ucx" is not existed*/
 mca_pml_ucx_module_t ompi_pml_ucx __attribute__((weak));
 
 #define MCA_COLL_UCG_SET_HANDLER(_api) \
     if (mca_coll_ucg_is_api_enable(#_api)) { \
-        module->super.coll_ ## _api = mca_coll_ucg_ ## _api; \
+        module->super.coll_ ## _api = mca_coll_ucg_ ## _api;\
     }
 
 #define MCA_COLL_UCG_SET_CACHE_HANDLER(_api) \
     if (mca_coll_ucg_is_api_enable(#_api)) { \
-        module->super.coll_ ## _api = mca_coll_ucg_ ## _api ## _cache; \
+         module->super.coll_ ## _api = mca_coll_ucg_ ## _api ## _cache; \
     }
 
 #define MCA_COLL_UCG_SAVE_FALLBACK(_api) \
@@ -91,8 +91,8 @@ static ucg_status_t mca_coll_ucg_oob_blocking_allgather(const void *sendbuf,
         //bcast recvbuf to all rank
         for (i = 1; i < size; i++) {
             rc = MCA_PML_CALL(send((char *)recvbuf, size * count, MPI_CHAR, i,
-                              MCA_COLL_BASE_TAG_ALLGATHER,
-                              MCA_PML_BASE_SEND_STANDARD, comm));
+                                   MCA_COLL_BASE_TAG_ALLGATHER,
+                                   MCA_PML_BASE_SEND_STANDARD, comm));
             if (rc != OMPI_SUCCESS) {
                 goto out;
             }
@@ -100,15 +100,15 @@ static ucg_status_t mca_coll_ucg_oob_blocking_allgather(const void *sendbuf,
     } else {
         //send data to rank 0
         rc = MCA_PML_CALL(send((char *)sendbuf, count, MPI_CHAR, 0, MCA_COLL_BASE_TAG_ALLGATHER,
-                          MCA_PML_BASE_SEND_STANDARD, comm));
+                               MCA_PML_BASE_SEND_STANDARD, comm));
         if (rc != OMPI_SUCCESS) {
             goto out;
         }
 
         //recv gather data from rank 0
         rc = MCA_PML_CALL(recv((char *)recvbuf, size * count, MPI_CHAR, 0,
-                          MCA_COLL_BASE_TAG_ALLGATHER, comm,
-                          MPI_STATUS_IGNORE));
+                               MCA_COLL_BASE_TAG_ALLGATHER, comm,
+                               MPI_STATUS_IGNORE));
         if (rc != OMPI_SUCCESS) {
             goto out;
         }
@@ -211,6 +211,11 @@ static void *mca_coll_ucg_get_ucp_worker(void *arg)
     return (void*)ompi_pml_ucx.ucp_worker;
 }
 
+static void *mca_coll_ucg_get_ucp_context(void *arg)
+{
+    return (void*)ompi_pml_ucx.ucp_context;
+}
+
 static int mca_coll_ucg_init(void)
 {
     mca_coll_ucg_component_t *cm = &mca_coll_ucg_component;
@@ -220,8 +225,10 @@ static int mca_coll_ucg_init(void)
     ucg_global_params_t global_params = {
         .field_mask = UCG_GLOBAL_PARAMS_FIELD_OOB_RESOURCE,
         .oob_resource.get_ucp_ep = mca_coll_ucg_get_ucp_ep,
-        .oob_resource.get_ucp_worker = mca_coll_ucg_get_ucp_worker
+        .oob_resource.get_ucp_worker = mca_coll_ucg_get_ucp_worker,
+        .oob_resource.get_ucp_context = mca_coll_ucg_get_ucp_context
     };
+
     status = ucg_global_init(&global_params);
     if (status != UCG_OK) {
         UCG_ERROR("UCG global init failed: %s", ucg_status_string(status));
