@@ -17,6 +17,8 @@
  * Copyright (c) 2014-2020 Intel, Inc.  All rights reserved.
  * Copyright (c) 2015-2018 Research Organization for Information Science
  *                         and Technology (RIST). All rights reserved.
+ * Copyright (c) 2024 Huawei Technologies Co., Ltd.
+ *                         All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -34,6 +36,7 @@
 #include "orte/constants.h"
 
 #include <stdlib.h>
+#include <dirent.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -182,6 +185,39 @@ static opal_list_t launch_list;
 static opal_event_t launch_event;
 static char *rsh_agent_path=NULL;
 static char **rsh_agent_argv=NULL;
+
+/**
+ * Calculate the quantity of fd to control the size of fdmax
+ */
+static long find_fd_max(void)
+{
+    DIR *dir;
+    struct dirent *entry;
+    char *endptr;
+    long max_fd = -1;
+    long fd_num;
+
+    dir = opendir("/proc/self/fd");
+    if (dir == NULL) {
+        return max_fd;
+    }
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+            continue;
+
+        fd_num = strtol(entry->d_name, &endptr, 10);
+
+        if (*endptr == '\0' && fd_num >= 0) {
+            if (fd_num > max_fd) {
+                max_fd = fd_num;
+            }
+        }
+    }
+
+    closedir(dir);
+    return max_fd;
+}
 
 /**
  * Init the module
@@ -753,6 +789,7 @@ static void ssh_child(int argc, char **argv)
     char **exec_argv;
     int fdin;
     sigset_t sigs;
+    long fd_max;
 
     /* setup environment */
     env = opal_argv_copy(orte_launch_environ);
@@ -777,6 +814,15 @@ static void ssh_child(int argc, char **argv)
     close(fdin);
 
     /* close all file descriptors w/ exception of stdin/stdout/stderr */
+
+    fd_max = find_fd_max();
+    if (fd_max != -1 && fd_max < fdmax) {
+        fdmax = fd_max + 1;
+    }
+    opal_output_verbose(10, orte_plm_base_framework.framework_output,
+                        "%s plm:rsh: close max fd: %ld",
+                        ORTE_NAME_PRINT(ORTE_PROC_MY_NAME), fdmax);
+
     for(fd=3; fd<fdmax; fd++)
         close(fd);
 
