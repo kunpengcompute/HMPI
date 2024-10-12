@@ -256,7 +256,7 @@ static void mca_coll_ucg_rcache_coll_req_args_init(mca_coll_ucg_args_t *dst,
     *dst = *src;
     int *scounts, *sdispls, *rcounts, *rdispls, *disps;
     uint32_t i, size = (uint32_t)ompi_comm_size(src->comm);
-    mca_coll_ucg_subargs_t *args = mca_coll_ucg_subargs_pool_get();
+    mca_coll_ucg_subargs_t *args = NULL;
 
     switch (src->coll_type) {
         case MCA_COLL_UCG_TYPE_ALLTOALLV:
