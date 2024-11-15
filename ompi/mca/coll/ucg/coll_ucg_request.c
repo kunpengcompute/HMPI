@@ -26,6 +26,8 @@
 
 mca_coll_ucg_rpool_t mca_coll_ucg_rpool = {0};
 static mca_coll_ucg_rcache_t mca_coll_ucg_rcache;
+static int npolls = 10;
+const int MAX_NPOLLS = 100;
 
 mca_coll_ucg_subargs_pool_t mca_coll_ucg_subargs_pool = {0};
 
@@ -222,6 +224,17 @@ int mca_coll_ucg_subargs_pool_init(uint32_t size)
 void mca_coll_ucg_subargs_pool_cleanup(void)
 {
     OBJ_DESTRUCT(&mca_coll_ucg_subargs_pool.flist);
+    return;
+}
+
+void mca_coll_ucg_npolls_init(int n)
+{
+    if (n < 1) {
+        n = 1;
+    } else if (n > MAX_NPOLLS) {
+        n = MAX_NPOLLS;
+    }
+    npolls = n;
     return;
 }
 
@@ -649,7 +662,7 @@ int mca_coll_ucg_request_execute(mca_coll_ucg_req_t *coll_req)
     int count = 0;
     while (UCG_INPROGRESS == (status = ucg_request_test(ucg_req))) {
         // TODO: test wether opal_progress() can be removed
-        if (++count % 10 == 0) {
+        if (++count % npolls == 0) {
             opal_progress();
         }
     }

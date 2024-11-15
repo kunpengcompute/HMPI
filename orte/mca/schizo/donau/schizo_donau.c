@@ -67,9 +67,9 @@ static orte_schizo_launch_environ_t check_launch_environment(void)
         goto setup;
     }
 
-    /* see if we are in a DONAU allocation */
-    char *donau_alloc_file = getenv("CCS_ALLOC_FILE");
-    if (NULL == donau_alloc_file || 0 == strlen(donau_alloc_file)) {
+    /* see if we are in DONAU pmix launch */
+    char *donau_pmix_namespace = getenv("PMIX_NAMESPACE");
+    if (NULL == donau_pmix_namespace || 0 == strlen(donau_pmix_namespace)) {
         /* nope */
         myenv = ORTE_SCHIZO_UNDETERMINED;
         return myenv;
@@ -102,7 +102,7 @@ static orte_schizo_launch_environ_t check_launch_environment(void)
     opal_argv_append_nosize(&pushed_envs, OPAL_MCA_PREFIX"orte_externally_bound");
     opal_argv_append_nosize(&pushed_vals, "1");
 
-setup:
+setup:  
     opal_output_verbose(1, orte_schizo_base_framework.framework_output,
                         "schizo:donau DECLARED AS %s", orte_schizo_base_print_env(myenv));
     if (NULL != pushed_envs) {

@@ -551,13 +551,6 @@ int ompi_mpi_init(int argc, char **argv, int requested, int *provided,
         goto error;
     }
 
-    /* declare our presence for interlib coordination, and
-     * register for callbacks when other libs declare */
-    if (OMPI_SUCCESS != (ret = ompi_interlib_declare(*provided, OMPI_IDENT_STRING))) {
-        error = "ompi_interlib_declare";
-        goto error;
-    }
-
     /* initialize datatypes. This step should be done early as it will
      * create the local convertor and local arch used in the proc
      * init.
@@ -645,6 +638,13 @@ int ompi_mpi_init(int argc, char **argv, int requested, int *provided,
         goto error;
     }
 #endif
+
+    /* declare our presence for interlib coordination, and
+     * register for callbacks when other libs declare */
+    if (OMPI_SUCCESS != (ret = ompi_interlib_declare(*provided, OMPI_IDENT_STRING))) {
+        error = "ompi_interlib_declare";
+        goto error;
+    }
 
     /* In order to reduce the common case for MPI apps (where they
        don't use MPI-2 IO or MPI-1 topology functions), the io and

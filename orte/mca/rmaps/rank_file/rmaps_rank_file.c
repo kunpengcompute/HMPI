@@ -179,11 +179,11 @@ static int orte_rmaps_rf_map(orte_job_t *jdata)
         }
     } else if ((NULL != getenv("CCS_COSCHED_MPI_AFFINITY_FILE")) &&
         (0 != strlen(getenv("CCS_COSCHED_MPI_AFFINITY_FILE")))) {
-            char *donau_affinity_path = getenv("CCS_COSCHED_MPI_AFFINITY_FILE");
-            if (ORTE_SUCCESS != (rc = orte_rmaps_donau_affinity_file_parse(donau_affinity_path))) {
-                ORTE_ERROR_LOG(rc);
-                goto error;
-            }
+        char *donau_affinity_path = getenv("CCS_COSCHED_MPI_AFFINITY_FILE");
+        if (ORTE_SUCCESS != (rc = orte_rmaps_donau_affinity_file_parse(donau_affinity_path))) {
+            ORTE_ERROR_LOG(rc);
+            goto error;
+        }
     }
 
     /* cycle through the app_contexts, mapping them sequentially */
@@ -426,11 +426,11 @@ static int orte_rmaps_donau_affinity_file_parse(const char *affinityfile)
         }
         rfmap = OBJ_NEW(orte_rmaps_rank_file_map_t);
         opal_pointer_array_set_item(&rankmap, rank_ID, rfmap);
-        num_ranks++;  // keep track of provided ranks;
+        num_ranks++;  // keep track of number of provided ranks
 
         /* check the rank item */
         if (NULL == rfmap) {
-            orte_show_help("help-rmaps_rank-file.txt", "bad-syntax", true, affinityfile);
+            orte_show_help("help-rmaps_rank_file.txt", "bad-syntax", true, affinityfile);
             rc = ORTE_ERR_BAD_PARAM;
             ORTE_ERROR_LOG(rc);
             return rc;
@@ -442,7 +442,7 @@ static int orte_rmaps_donau_affinity_file_parse(const char *affinityfile)
             rfmap->node_name = strdup(hostname);
         }
         for (int i = 0; i < strlen(logical_index) && '\0' != logical_index[i]; i++) {
-            rfmap->slot_list[i] = logical_index[i];
+             rfmap->slot_list[i] = logical_index[i];
         }
     }
     free(line);

@@ -311,6 +311,8 @@ int mca_coll_ucg_init_once()
         cm->blacklist = opal_argv_split(cm->disable_coll, ',');
     }
 
+    mca_coll_ucg_npolls_init(cm->npolls);
+
     rc = mca_coll_ucg_init();
     if (rc != OMPI_SUCCESS) {
         goto err_free_blacklist;
