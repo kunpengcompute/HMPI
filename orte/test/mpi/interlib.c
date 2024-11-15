@@ -1,4 +1,10 @@
-/* -*- C -*-
+/* -*- C -*- */
+/*
+ * Copyright (c) 2024      Huawei Technologies Co., Ltd.
+ *                         All rights reserved.
+ * $COPYRIGHT$
+ *
+ * Additional copyrights may follow
  *
  * $HEADER$
  *
@@ -12,6 +18,7 @@
 #include "mpi.h"
 
 #include "orte/util/proc_info.h"
+#include "opal/util/argv.h"
 #include "opal/mca/pmix/base/base.h"
 
 static size_t interlibhandler_id = SIZE_MAX;

@@ -58,12 +58,12 @@
     } while(0)
 
 /*
- * Non-blocking execution pattern:
+ * Non-blockingexecution pattern:
  *  1. Initialize coll request
  *  2. Non-blocking execute
  *  3. Mark coll request cacheable
  *  4. Assign ompi request
- * If any failure, go to fallback.
+ * If any failure, goto fallback.
  */
 #define MCA_COLL_UCG_REQUEST_PATTERN_NB(_ompi_req, _cache_key, _coll_request_init, ...) \
     do {\
@@ -126,12 +126,12 @@ typedef struct {
 typedef struct {
     opal_free_list_item_t super;
     int buf[];
-}mca_coll_ucg_subargs_t;
+} mca_coll_ucg_subargs_t;
 OBJ_CLASS_DECLARATION(mca_coll_ucg_subargs_t);
 
 typedef struct {
     opal_free_list_t flist;
-}mca_coll_ucg_subargs_pool_t;
+} mca_coll_ucg_subargs_pool_t;
 
 typedef struct mca_coll_bcast_args {
     void *buffer;
@@ -258,6 +258,9 @@ static inline void mca_coll_ucg_subargs_pool_put(mca_coll_ucg_subargs_t *subargs
 
 /* Initialize request cache */
 int mca_coll_ucg_rcache_init(int size);
+
+/* Init ucg progress npolls */
+void mca_coll_ucg_npolls_init(int n);
 
 /* Cleanup request cache */
 void mca_coll_ucg_rcache_cleanup(void);

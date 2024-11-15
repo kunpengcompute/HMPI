@@ -77,6 +77,7 @@ mca_coll_ucg_component_t mca_coll_ucg_component = {
     .max_rcache_size = 10,
     .disable_coll = NULL,
     .topology = NULL,
+    .npolls = 10,
 
     .ucg_context = NULL,
     //TODO: More parameters should be added below.
@@ -119,6 +120,14 @@ static int mca_coll_ucg_register(void)
                                           OPAL_INFO_LVL_9,
                                           MCA_BASE_VAR_SCOPE_READONLY,
                                           &mca_coll_ucg_component.topology);
+
+    (void)mca_base_component_var_register(&mca_coll_ucg_component.super.collm_version, "npolls",
+                                          "Set how many poll counts of ucg progress before opal_progress, "
+                                          "can fine tune performance by setting this value, range [1, 100]",
+                                          MCA_BASE_VAR_TYPE_INT, NULL, 0, 0,
+                                          OPAL_INFO_LVL_6,
+                                          MCA_BASE_VAR_SCOPE_READONLY,
+                                          &mca_coll_ucg_component.npolls);
 
     return OMPI_SUCCESS;
 }

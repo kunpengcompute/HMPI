@@ -735,11 +735,9 @@ static char *donau_merge_nodes(char *nodelist)
             }
             strcpy(prefix, temp_prefix);
             sprintf(result + strlen(result), "%s[", prefix);
-            start = num;
-            end = num;
+            start = end = num;
         } else {
             if (num == end + 1) {
-                start = num;
                 end = num;
             } else {
                 if (start == end) {
