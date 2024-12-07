@@ -94,14 +94,31 @@ orte_plm_base_module_1_0_0_t orte_plm_donau_module = {
 /*
  * Local variables
  */
-#define MAX_NODE_COUNT (DONAU_MAX_NODELIST_LENGTH / (DONAU_MAX_NODENAME_LENGTH + 1))
+
+typedef struct Node {
+    char name[DONAU_MAX_NODENAME_LENGTH];
+    int len;
+    char pre[DONAU_MAX_NODENAME_LENGTH];
+    int pre_len;
+    int num;
+} nod;
+
+typedef enum {
+    SIMP_SUCCESS = 0,
+    SIMP_OUT_OF_RESOURCE,
+    SIMP_NULL
+} simp_state;
+
+nod node[DONAU_MAX_NODELIST_LENGTH];
+
 static pid_t primary_drun_pid = 0;
 static bool primary_pid_set = false;
 static void launch_daemons(int fd, short args, void *cbdata);
-static char *donau_nodelist_simp(char *nodelist);
-static int donau_compare(const void *a, const void *b);
-static char *donau_sort_nodes(char* nodes);
-static char *donau_merge_nodes(char *nodelist);
+static int cmp(const void *a, const void *b);
+static void get_pre(char *s, char *result);
+static int get_id_num(char *s);
+static simp_state donau_nodelist_simp(char *node_list, char *nodelist_result);
+
 /*
  * Init the module
  */
@@ -291,7 +308,19 @@ static void launch_daemons(int fd, short args, void *cbdata)
 
     /* simplify nodelist for donau */
 
-    nodelist_simp = donau_nodelist_simp(nodelist_flat);
+    nodelist_simp = (char *)malloc(DONAU_MAX_NODELIST_LENGTH);
+    memset(nodelist_simp, 0, sizeof(nodelist_simp));
+    simp_state error_num = donau_nodelist_simp(nodelist_flat, nodelist_simp);
+    if (error_num == SIMP_OUT_OF_RESOURCE) {
+        ORTE_ERROR_LOG(ORTE_ERR_OUT_OF_RESOURCE);
+    } else if (error_num == SIMP_NULL) {
+        ORTE_ERROR_LOG(ORTE_ERR_NOT_AVAILABLE);
+    }
+    if (error_num != SIMP_SUCCESS) {
+        free(nodelist_simp);
+        free(nodelist_flat);
+        goto cleanup;
+    }
 
     asprintf(&tmp, "-nl");
     opal_argv_append(&argc, &argv, tmp);
@@ -660,102 +689,173 @@ static int plm_donau_start_proc(int argc, char **argv, char **env,
     return ORTE_SUCCESS;
 }
 
-static char *donau_nodelist_simp(char *nodelist)
-{
-    char *sortedNodes = donau_sort_nodes(nodelist);
-    char *mergedNodes = donau_merge_nodes(sortedNodes);
-    free(sortedNodes);
-    return mergedNodes;
-}
-
-static int donau_compare(const void *a, const void *b)
-{
-    return strcmp(*(const char **)a, *(const char **)b);
-}
-
-static char *donau_sort_nodes(char* nodes)
-{
-    char* nodeArray[MAX_NODE_COUNT];
-    char* sortedNodes = malloc(DONAU_MAX_NODELIST_LENGTH + 1);
-    if (NULL == sortedNodes) {
-        return NULL;
-    }
-    int node_idx = 0;
-
-    nodeArray[node_idx] = strtok(nodes, ",");
-    while (nodeArray[node_idx] != NULL) {
-        if (strlen(nodeArray[node_idx]) > DONAU_MAX_NODENAME_LENGTH) {
-            opal_output(0, "Error: Node name length exceeds limit.");
-            free(sortedNodes);
-            return NULL;
-        }
-        nodeArray[++node_idx] = strtok(NULL, ",");
-    }
-
-    qsort(nodeArray, node_idx, sizeof(const char*), donau_compare);
-
-    strcpy(sortedNodes, nodeArray[0]);
-    for(int j = 1; j < node_idx; j++) {
-        strcat(sortedNodes, ",");
-        strcat(sortedNodes, nodeArray[j]);
-    }
-
-    return sortedNodes;
-}
-
-static char *donau_merge_nodes(char *nodelist)
-{
-    char* result = (char*)malloc(DONAU_MAX_NODELIST_LENGTH * sizeof(char));
-    if (NULL == result) {
-        return NULL;
-    }
-    result[0] = '\0';
-    char *nodelist_bak = strdup(nodelist);
-    char *token = strtok(nodelist_bak, ",");
-    char prefix[DONAU_MAX_NODENAME_LENGTH] = {0};
-    int start = -1;
-    int end = -1;
-    while (token != NULL) {
-        char temp_prefix[DONAU_MAX_NODENAME_LENGTH] = {0};
-        int num;
-        char *p = token + strlen(token) - 1;
-        while (p >= token && isdigit(*p)) {
-            --p;
-        }
-        strncpy(temp_prefix, token, p - token + 1);
-        temp_prefix[p - token + 1] = '\0';
-        num = atoi(p + 1);
-        if (strcmp(temp_prefix, prefix) != 0) {
-            if (start != -1) {
-                if (start == end) {
-                    sprintf(result + strlen(result), "%d],", start);
-                } else {
-                    sprintf(result + strlen(result), "%d-%d],", start, end);
-                }
-            }
-            strcpy(prefix, temp_prefix);
-            sprintf(result + strlen(result), "%s[", prefix);
-            start = end = num;
-        } else {
-            if (num == end + 1) {
-                end = num;
-            } else {
-                if (start == end) {
-                    sprintf(result + strlen(result), "%d,", start);
-                } else {
-                    sprintf(result + strlen(result), "%d-%d,", start, end);
-                }
-                start = num;
-                end = num;
-            }
-        }
-        token = strtok(NULL, ",");
-    }
-    if (start == end) {
-        sprintf(result + strlen(result), "%d]", start);
+// Structure sorting
+static int cmp(const void *a, const void *b) {
+    nod c = *(nod *)a;
+    nod d = *(nod *)b;
+    if (strcmp(c.pre, d.pre) != 0) {
+        return strcmp(c.pre, d.pre);
     } else {
-        sprintf(result + strlen(result), "%d-%d]", start, end);
+        return d.num - c.num;
     }
-    free(nodelist_bak);
+}
+
+// Obtain the node prefix name
+static void get_pre(char *s, char *result) {
+    int len = strlen(s);
+    int prelen = -1;
+    memset(result, '\0', sizeof(result));
+    for (int i = len - 1; i >= 0; i--) {
+        if(s[i] >= '0' && s[i] <= '9'){
+            continue;
+        } else {
+            prelen = i;
+            break;
+        }
+    }
+    if (prelen == -1) {
+        prelen = len - 1;
+    }
+    memcpy(result, s, prelen + 1);
+    return ;
+}
+
+// Obtain the node number
+static int get_id_num(char *s) {
+    int result = 0;
+    int len = strlen(s);
+    int last_non_zero = len;
+    for (int i = len - 1; i >= 0; i--) {
+        if (s[i] < '0' || s[i] > '9') {
+            break;
+        } else if (s[i] > '0' && s[i] <= '9') {
+            last_non_zero = i;
+        }
+    }
+    if (s[len - 1] < '0' || s[len - 1] > '9') {
+        // Use -2 to make a plain string at the front of the sort
+        return -2;
+    } else if (last_non_zero == len && s[len - 1] == '0' &&
+                (len - 2 < 0 || (s[len - 2] < '0' || s[len - 2] > '9'))) {
+        // Valid number 0
+        return 0;
+    } else if (last_non_zero != 0 && s[last_non_zero - 1] == '0') {
+        // Contain leading zeros
+        return -1;
+    }
+    for (int i = last_non_zero; i < len; i++) {
+        result = result * 10 + s[i] - '0';
+    }
     return result;
+}
+
+// Simplify node name (Split with ",")
+static simp_state donau_nodelist_simp(char *node_list, char *nodelist_result) {
+    int temp_num = 0;
+    char *temp_s;
+
+    int node_stack[DONAU_MAX_NODELIST_LENGTH];
+    int stack_size = 0;
+
+    if (*node_list == '\0' || node_list == NULL) {
+        return SIMP_NULL;
+    }
+    temp_s = strtok(node_list, ",");
+    strcpy(node[temp_num].name, temp_s);
+    temp_num++;
+    while (1) {
+        temp_s = strtok(NULL, ",");
+        if(temp_s == NULL) {
+            break;
+        }
+        strcpy(node[temp_num].name, temp_s);
+        temp_num++;
+    }
+    for (int i = 0; i < temp_num; i++) {
+        node[i].len = strlen(node[i].name);
+        node[i].num = get_id_num(node[i].name);
+        get_pre(node[i].name, node[i].pre);
+        node[i].pre_len = strlen(node[i].pre);
+    }
+
+    qsort(node, temp_num, sizeof(node[0]), cmp);
+
+    for (int i = 0; i <= temp_num; i++) {
+        char temp_str[DONAU_MAX_NODELIST_LENGTH] = "";
+        int str_len = node[i].pre_len;
+
+        if (i < temp_num && stack_size == 0) {
+            node_stack[++stack_size] = i;
+        } else if (i < temp_num && strcmp(node[i].pre, node[i - 1].pre) == 0) {
+            node_stack[++stack_size] = i;
+        } else {
+            int temp_len = 0;
+            int last_str_len = strlen(node[i - 1].pre);
+            for (int j = 0; j < last_str_len; j++) {
+                temp_str[j] = node[i - 1].name[j];
+                temp_len++;
+            }
+            if (node[node_stack[stack_size]].pre_len == node[node_stack[stack_size]].len) {
+                if(strlen(nodelist_result) + strlen(temp_str) >= DONAU_MAX_NODELIST_LENGTH) {
+                    return SIMP_OUT_OF_RESOURCE;
+                }
+                strcat(nodelist_result, temp_str);
+                if (i < temp_num || i == temp_num && stack_size > 1) {
+                    strcat(nodelist_result, ",");
+                }
+                stack_size--;
+            }
+            if (stack_size > 0) {
+                temp_str[temp_len++] = '[';
+                // Determine whether a character is at the beginning
+                int is_beginning = 0;
+                // Determine whether a character is at the end
+                int is_end = 0;
+                while (stack_size > 0) {
+                    // Compress if adjacent to the previous number
+                    if (stack_size >= 1 && node[node_stack[stack_size]].num >= 0 &&
+                        node[node_stack[stack_size]].num == node[node_stack[stack_size - 1]].num - 1) {
+                        if (is_beginning == 0){
+                            is_beginning = 1;
+                        } else {
+                            stack_size--;
+                            continue;
+                        }
+                    } else {
+                        is_beginning =0;
+                    }
+                    if (is_end == 1) {
+                        temp_str[temp_len++] = '-';
+                        is_end = 0;
+                    }
+                    for (int j = node[node_stack[stack_size]].pre_len; j < node[node_stack[stack_size]].len; j++) {
+                        temp_str[temp_len++] = node[node_stack[stack_size]].name[j];
+                    }
+                    if (stack_size > 1) {
+                        if ((node[node_stack[stack_size]].num < 0) ||
+                            (node[node_stack[stack_size]].num != node[node_stack[stack_size - 1]].num - 1)) {
+                            temp_str[temp_len++] = ',';
+                        }
+                    }
+                    if (is_beginning == 1) {
+                        is_end = 1;
+                    }
+
+                    stack_size--;
+                }
+                temp_str[temp_len++] = ']';
+                if(strlen(nodelist_result) + strlen(temp_str) >= DONAU_MAX_NODELIST_LENGTH) {
+                    return SIMP_OUT_OF_RESOURCE;
+                }
+                strcat(nodelist_result, temp_str);
+                if (i < temp_num) {
+                    strcat(nodelist_result, ",");
+                }
+            }
+
+            node_stack[++stack_size] = i;
+        }
+    }
+
+    return SIMP_SUCCESS;
 }

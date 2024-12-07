@@ -84,6 +84,13 @@ static int donau_get_alloc(char *alloc_path, opal_list_t *nodes)
             goto cleanup;
         }
         node->name = strdup(hostname);
+        // Strip off the FQDN if present, ignore IP addresses
+        if (!orte_keep_fqdn_hostnames && !opal_net_isaddr(node->name)) {
+            char *ptr;
+            if (NULL != (ptr = strchr(node->name, '.'))) {
+                *ptr = '\0';
+            }
+        }
         node->state = ORTE_NODE_STATE_UP;
         node->slots_inuse = 0;
         node->slots_max = 0;
