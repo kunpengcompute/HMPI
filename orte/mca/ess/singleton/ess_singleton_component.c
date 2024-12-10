@@ -159,8 +159,8 @@ static int component_query(mca_base_module_t **module, int *priority)
             return ORTE_ERR_SILENT;
         }
         /* see if we are under DONAU */
-        char *donau_job_id = getenv("CCS_JOB_ID");
-        if (NULL != donau_job_id && 0 != strlen(donau_job_id)) {
+        char *donau_pmix_namespace = getenv("PMIX_NAMESPACE");
+        if (NULL != donau_pmix_namespace && 0 != strlen(donau_pmix_namespace)) {
             orte_show_help("help-ess-base.txt", "donau-error2", true);
             *module = NULL;
             *priority = 0;
