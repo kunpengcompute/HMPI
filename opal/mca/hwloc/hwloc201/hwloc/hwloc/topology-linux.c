@@ -54,6 +54,7 @@ struct hwloc_linux_backend_data_s {
     HWLOC_LINUX_ARCH_UNKNOWN
   } arch;
   int is_knl;
+  int is_kunpeng_with_moc;
   int is_amd_with_CU;
   struct utsname utsname; /* fields contain \0 when unknown */
   int fallback_nbprocessors; /* only used in hwloc_linux_fallback_pu_level(), maybe be <= 0 (error) earlier */
@@ -2947,6 +2948,33 @@ struct knl_hwdata {
   int mcdram_cache_line_size;
 };
 
+static int hwloc_linux_try_handle_kunpeng_moc_hwdata_properties(struct knl_hwdata *hwdata,
+                                                                unsigned DDR_nbnodes,
+                                                                unsigned long DDR_numa_size,
+                                                                unsigned MCDRAM_nbnodes,
+                                                                unsigned long MCDRAM_numa_size)
+{
+    hwdata->memory_mode[0] = '\0';
+    hwdata->cluster_mode[0] = '\0';
+
+    unsigned long total_cache_size = 64UL*1024*1024*1024 - MCDRAM_numa_size;
+
+    if (!MCDRAM_nbnodes) {
+        strcpy(hwdata->memory_mode, "Cache");
+    } else {
+        if (!total_cache_size)
+            strcpy(hwdata->memory_mode, "Flat");
+        else
+            fprintf(stderr, "Unexpected Kunpeng MCDRAM cache size %lu\n", total_cache_size);
+    }
+
+    hwdata->mcdram_cache_size = total_cache_size/DDR_nbnodes;
+    hwdata->mcdram_cache_associativity = 1;
+    hwdata->mcdram_cache_inclusiveness = 0;
+    hwdata->mcdram_cache_line_size = 64;
+    return 0;
+}
+
 /* Try to handle knl hwdata properties
  * Returns 0 on success and -1 otherwise */
 static int hwloc_linux_try_handle_knl_hwdata_properties(struct hwloc_linux_backend_data_s *data,
@@ -3272,11 +3300,14 @@ look_sysfsnode(struct hwloc_topology *topology,
 
       free(indexes);
 
-      unsigned nr_knl_clusters = 0;
-      hwloc_obj_t knl_clusters[4]= { NULL, NULL, NULL, NULL };
-      int node_knl_cluster[8] = { -1, -1, -1, -1, -1, -1, -1, -1};
+      unsigned nr_clusters = 0;
+      hwloc_obj_t clusters[16]= { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+      int node_cluster[32] = { -1, -1, -1, -1, -1, -1, -1, -1,
+                               -1, -1, -1, -1, -1, -1, -1, -1,
+                               -1, -1, -1, -1, -1, -1, -1, -1,
+                               -1, -1, -1, -1, -1, -1, -1, -1 };
 
-      if (data->is_knl && !failednodes) {
+      if ((data->is_knl || data->is_kunpeng_with_moc) && !failednodes) {
 	char *env = getenv("HWLOC_KNL_NUMA_QUIRK");
 	int noquirk = (env && !atoi(env)) || !distances || !hwloc_filter_check_keep_object_type(topology, HWLOC_OBJ_GROUP);
 	int mscache;
@@ -3297,11 +3328,16 @@ look_sysfsnode(struct hwloc_topology *topology,
 	    DDR_nbnodes++;
 	  }
 	assert(DDR_nbnodes + MCDRAM_nbnodes == nbnodes);
-
-	hwloc_linux_try_handle_knl_hwdata_properties(data, &knl_hwdata,
-						     DDR_nbnodes, DDR_numa_size,
-						     MCDRAM_nbnodes, MCDRAM_numa_size);
-	mscache = knl_hwdata.mcdram_cache_size > 0 && hwloc_filter_check_keep_object_type(topology, HWLOC_OBJ_L3CACHE);
+    if (data->is_kunpeng_with_moc) {
+        hwloc_linux_try_handle_kunpeng_moc_hwdata_properties(&knl_hwdata,
+                                                     DDR_nbnodes, DDR_numa_size,
+                                                     MCDRAM_nbnodes, MCDRAM_numa_size);
+    } else {
+        hwloc_linux_try_handle_knl_hwdata_properties(data, &knl_hwdata,
+                                                     DDR_nbnodes, DDR_numa_size,
+                                                     MCDRAM_nbnodes, MCDRAM_numa_size);
+    }
+    mscache = knl_hwdata.mcdram_cache_size > 0 && hwloc_filter_check_keep_object_type(topology, HWLOC_OBJ_L3CACHE);
 
 	if (knl_hwdata.cluster_mode[0])
 	  hwloc_obj_add_info(topology->levels[0][0], "ClusterMode", knl_hwdata.cluster_mode);
@@ -3358,10 +3394,10 @@ look_sysfsnode(struct hwloc_topology *topology,
 	    hwloc_obj_add_other_obj_sets(cluster, nodes[closest]);
 	    cluster->subtype = strdup("Cluster");
 	    cluster->attr->group.kind = HWLOC_GROUP_KIND_INTEL_KNL_SUBNUMA_CLUSTER;
-	    knl_clusters[nr_knl_clusters] = cluster;
-	    node_knl_cluster[i] = nr_knl_clusters;
-	    node_knl_cluster[closest] = nr_knl_clusters;
-	    nr_knl_clusters++;
+          clusters[nr_clusters] = cluster;
+          node_cluster[i] = nr_clusters;
+          node_cluster[closest] = nr_clusters;
+          nr_clusters++;
 	  }
 	}
 	if (!noquirk) {
@@ -3374,9 +3410,9 @@ look_sysfsnode(struct hwloc_topology *topology,
       /* everything is ready for insertion now */
 
       /* insert knl clusters */
-      if (data->is_knl) {
-	for(i=0; i<nr_knl_clusters; i++) {
-	  knl_clusters[i] = hwloc_insert_object_by_cpuset(topology, knl_clusters[i]);
+      if (data->is_knl || data->is_kunpeng_with_moc) {
+	for(i=0; i<nr_clusters; i++) {
+        clusters[i] = hwloc_insert_object_by_cpuset(topology, clusters[i]);
 	  /* failure or replace can be ignored */
 	}
       }
@@ -3386,9 +3422,9 @@ look_sysfsnode(struct hwloc_topology *topology,
 	hwloc_obj_t node = nodes[i];
 	if (node) {
 	  hwloc_obj_t res_obj;
-	  if (data->is_knl && node_knl_cluster[i] != -1) {
+	  if ((data->is_knl || data->is_kunpeng_with_moc) && node_cluster[i] != -1) {
 	    /* directly attach to the existing cluster */
-	    hwloc_obj_t parent = knl_clusters[node_knl_cluster[i]];
+	    hwloc_obj_t parent = clusters[node_cluster[i]];
 	    res_obj = hwloc__attach_memory_object(topology, parent, node, hwloc_report_os_error);
 	  } else {
 	    /* we don't know where to attach, let the core find or insert if needed */
@@ -4380,6 +4416,8 @@ hwloc_gather_system_info(struct hwloc_topology *topology,
       data->arch = HWLOC_LINUX_ARCH_POWER;
     else if (!strcmp(data->utsname.machine, "ia64"))
       data->arch = HWLOC_LINUX_ARCH_IA64;
+    else if (!strncmp(data->utsname.machine, "aarch", 5))
+      data->arch = HWLOC_LINUX_ARCH_ARM;
   }
 }
 
@@ -4518,9 +4556,10 @@ hwloc_look_linuxfs(struct hwloc_backend *backend)
   /**************************
    * detect model for quirks
    */
-  if (data->arch == HWLOC_LINUX_ARCH_X86 && numprocs > 0) {
+  if (numprocs > 0) {
       unsigned i;
       const char *cpuvendor = NULL, *cpufamilynumber = NULL, *cpumodelnumber = NULL;
+      const char *cpu_implementer, *cpu_part;
       for(i=0; i<Lprocs[0].infos_count; i++) {
 	if (!strcmp(Lprocs[0].infos[i].name, "CPUVendor")) {
 	  cpuvendor = Lprocs[0].infos[i].value;
@@ -4528,7 +4567,11 @@ hwloc_look_linuxfs(struct hwloc_backend *backend)
 	  cpufamilynumber = Lprocs[0].infos[i].value;
 	} else if (!strcmp(Lprocs[0].infos[i].name, "CPUModelNumber")) {
 	  cpumodelnumber = Lprocs[0].infos[i].value;
-	}
+    } else if (!strcmp(Lprocs[0].infos[i].name, "CPUImplementer")) {
+        cpu_implementer = Lprocs[0].infos[i].value;
+    } else if (!strcmp(Lprocs[0].infos[i].name, "CPUPart")) {
+        cpu_part = Lprocs[0].infos[i].value;
+    }
       }
       if (cpuvendor && !strcmp(cpuvendor, "GenuineIntel")
 	  && cpufamilynumber && !strcmp(cpufamilynumber, "6")
@@ -4540,6 +4583,10 @@ hwloc_look_linuxfs(struct hwloc_backend *backend)
 	  && (!strcmp(cpufamilynumber, "21")
 	      || !strcmp(cpufamilynumber, "22")))
 	data->is_amd_with_CU = 1;
+      if (cpu_implementer && !strcmp(cpu_implementer, "0x48")
+      && cpu_part && !strcmp(cpu_part, "0xd22")) {
+    data->is_kunpeng_with_moc = 1;
+      }
   }
 
   /**********************
@@ -4695,6 +4742,7 @@ hwloc_linux_component_instantiate(struct hwloc_disc_component *component,
   /* default values */
   data->arch = HWLOC_LINUX_ARCH_UNKNOWN;
   data->is_knl = 0;
+  data->is_kunpeng_with_moc = 0;
   data->is_amd_with_CU = 0;
   data->is_real_fsroot = 1;
   data->root_path = NULL;
